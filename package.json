@@ -17,7 +17,7 @@
         "worker:rediscover-last-fm": "npx tsx src/workers/rediscoverLastfm.worker.ts",
         "worker:rediscover-spotify": "npx tsx src/workers/rediscoverSpotify.worker.ts",
         "worker:rediscover-fusion": "npx tsx src/workers/rediscoverFusion.worker.ts",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "vitest"
     },
     "keywords": [],
     "author": "",
@@ -30,7 +30,6 @@
         "celebrate": "^15.0.3",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
-        "D": "^1.0.0",
         "dayjs": "^1.11.18",
         "dotenv": "^17.4.2",
         "express": "^4.21.2",
@@ -38,8 +37,7 @@
         "file-type": "^19.6.0",
         "ioredis": "^5.9.2",
         "jsonwebtoken": "^9.0.3",
-        "p-limit": "^7.2.0",
-        "zlib": "^1.0.5"
+        "p-limit": "^7.2.0"
     },
     "devDependencies": {
         "@tsconfig/node20": "^20.1.6",
@@ -49,7 +47,10 @@
         "@types/express": "^4.17.23",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^22.18.12",
+        "@types/supertest": "^7.2.0",
+        "supertest": "^7.2.2",
         "tsc-watch": "^6.3.1",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.7"
     }
 }

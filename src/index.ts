@@ -1,34 +1,10 @@
-import express from "express"
-import { routes } from "./routes"
-import dotenv from "dotenv"
-import { errorHandler } from "./middlewares/internal-server-error"
-import { celebrateError } from "./middlewares/celebrate-error.middleware"
-import cors from "cors"
-import { notFound } from "./middlewares/page-not-found-error.middleware"
-import cookieParser from "cookie-parser"
+import app from './app'; // Importe o app configurado
+import dotenv from "dotenv";
 
-dotenv.config()
+dotenv.config();
 
-const app = express()
+const PORT = 3000;
 
-app.set("trust proxy", 1)
-
-app.use(cookieParser())
-
-app.use(
-    cors({
-        origin: "https://uncriticisably-rushier-rashida.ngrok-free.dev",
-        credentials: true, // permite envio de cookies
-    }),
-)
-
-routes(app)
-
-app.use(notFound)
-
-app.use(celebrateError)
-app.use(errorHandler)
-
-app.listen(3000, () => {
-    console.log("Server rodando em http://localhost:3000")
-})
+app.listen(PORT, () => {
+    console.log(`Server rodando em http://localhost:${PORT}`);
+});
