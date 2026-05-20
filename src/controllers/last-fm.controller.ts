@@ -2,14 +2,18 @@ import { Request, Response } from "express"
 import { ObjectId, RediscoverLovedTracksBody } from "../models/last-fm.model"
 import { rediscoverLastFmQueue } from "../queues/rediscoverLastfm.queue"
 import { redis } from "../infra/redis"
+import dayjs from "dayjs"
 
 export class LastFmController {
     static async rediscoverLovedTracks(req: Request, res: Response) {
         try {
             const query = req.body as unknown as RediscoverLovedTracksBody
+        const candidateStart = dayjs(req.body.candidateFrom).utc()
+        const candidateEnd = dayjs(req.body.candidateTo).utc()
 
+
+        const fetchInDays = candidateEnd.diff(candidateStart, "day")
             const {
-                fetchInDays,
                 distinct,
                 candidateFrom,
                 candidateTo,

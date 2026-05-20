@@ -1,24 +1,25 @@
-import { Request, Response, NextFunction } from "express"
-import dayjs from "dayjs"
-import minMax from "dayjs/plugin/minMax"
-import axios from "axios"
-import { UserInformation } from "../models/last-fm.auth.model"
-import { redis } from "../infra/redis"
-
+import { Request, Response, NextFunction } from 'express'
+import dayjs from 'dayjs'
+import minMax from 'dayjs/plugin/minMax'
+import axios from 'axios'
+import { UserInformation } from '../models/last-fm.auth.model'
+import { redis } from '../infra/redis'
 
 dayjs.extend(minMax)
 
 async function userAccountCreation(user: string) {
-    const userAccountCreationExists = await redis.get(`rediscover:${user}:accountCreation`)
+    const userAccountCreationExists = await redis.get(
+        `rediscover:${user}:accountCreation`,
+    )
 
     if (!userAccountCreationExists) {
         const params = {
-            method: "user.getinfo",
+            method: 'user.getinfo',
             user: user,
             api_key: process.env.LAST_FM_API_KEY!,
-            format: "json",
+            format: 'json',
         }
-        const endpoint = "https://ws.audioscrobbler.com/2.0/"
+        const endpoint = 'https://ws.audioscrobbler.com/2.0/'
         const userInfo = (await axios.get(endpoint, {
             params,
         })) as UserInformation
@@ -28,7 +29,7 @@ async function userAccountCreation(user: string) {
         await redis.set(
             `rediscover:${user}:accountCreation`,
             String(unixtimeAccountCreation),
-            "EX",
+            'EX',
             60 * 60 * 24 * 10,
         )
 
@@ -38,14 +39,21 @@ async function userAccountCreation(user: string) {
     return userAccountCreationExists
 }
 
-export async function resolveDateDefaults(req: Request, res: Response, next: NextFunction) {
+export async function resolveDateDefaults(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
     try {
         const userLastFm = req.body.lastFmUser
 
+
         if (!userLastFm) {
-            return next(new Error("Last.FM user not found in session"))
+            return next(new Error('Last.FM user not found in session'))
         }
-        const userAccountCreationUnixDate = Number(await userAccountCreation(userLastFm))
+        const userAccountCreationUnixDate = Number(
+            await userAccountCreation(userLastFm),
+        )
 
         const comparisonFrom =
             req.body.comparisonFrom !== undefined
@@ -67,23 +75,22 @@ export async function resolveDateDefaults(req: Request, res: Response, next: Nex
                 ? dayjs(req.body.candidateTo as string).utc()
                 : undefined
 
-        const fetchInDays = Number(req.body.fetchInDays)
-
         // se candidateFrom for ANTES da data de comparisonFrom, ERRO, por que dados candidatos a serem comparados devem ser procurados depois da data de comparisonFrom.
         if (candidateFrom?.isBefore(comparisonFrom)) {
             return next(
                 new Error(
-                    "invalid comparison period: Candidate period must start after the comparison period begins",
+                    'invalid comparison period: Candidate period must start after the comparison period begins',
                 ),
             )
         }
         // se comparison cobre alguma parte do período candidate (overlap/interseção entre dois períodos)
         const hasOverlap =
-            comparisonFrom?.isBefore(candidateTo) && comparisonTo?.isAfter(candidateFrom)
+            comparisonFrom?.isBefore(candidateTo) &&
+            comparisonTo?.isAfter(candidateFrom)
         if (hasOverlap) {
             return next(
                 new Error(
-                    "Invalid comparison period: Comparison period must not overlap with the candidate period",
+                    'Invalid comparison period: Comparison period must not overlap with the candidate period',
                 ),
             )
         }
@@ -113,7 +120,11 @@ export async function resolveDateDefaults(req: Request, res: Response, next: Nex
             candidateTo!.unix() < userAccountCreationUnixDate
 
         if (dateParametersBeforeCreationAccount) {
-            return next(new Error("Date parameters must be after account creation date"))
+            return next(
+                new Error(
+                    'Date parameters must be after account creation date',
+                ),
+            )
         }
         // nenhum parametro de data deve estar no futuro
         const dateParametersInFuture =
@@ -123,30 +134,9 @@ export async function resolveDateDefaults(req: Request, res: Response, next: Nex
             candidateTo?.isAfter(dayjs().utc())
 
         if (dateParametersInFuture) {
-            return next(new Error("Date parameters must not be in the future"))
+            return next(new Error('Date parameters must not be in the future'))
         }
 
-        // range maximo de busca é de 365 dias
-        const rangeStart = dayjs.min(comparisonFrom!, candidateFrom!)
-        const rangeEnd = dayjs.max(comparisonTo!, candidateTo!)
-
-        const totalDays = rangeEnd.diff(rangeStart, "day")
-
-        if (totalDays > 365) {
-            return next(
-                new Error(
-                    "The combined comparison and candidate date range must not exceed 365 days",
-                ),
-            )
-        }
-        // se fetchindays é 40 dias, a diferença entre datas de candidate e compare não pode ser menor que 40
-        if (totalDays < fetchInDays) {
-            return next(
-                new Error(
-                    `The provided date range is too short. To fetch tracks not listened to in the last ${fetchInDays} days, the total period must be at least ${fetchInDays} days`,
-                ),
-            )
-        }
 
         next()
     } catch (error: unknown) {
@@ -154,6 +144,6 @@ export async function resolveDateDefaults(req: Request, res: Response, next: Nex
             return next(error)
         }
 
-        return next(new Error("Unexpected error"))
+        return next(new Error('Unexpected error'))
     }
 }

@@ -1,14 +1,14 @@
-import { Joi } from "celebrate"
-import dayjs from "dayjs"
+import { Joi } from 'celebrate'
+import dayjs from 'dayjs'
 
 interface LastFmImage {
     size: string
-    "#text": string
+    '#text': string
 }
 
 interface LastFmStreamable {
     fulltrack: string
-    "#text": string
+    '#text': string
 }
 
 interface LastFmArtist {
@@ -33,18 +33,18 @@ export class LastFmTrack {
     attr: LastFmTrackAttr
 
     constructor(data: any = {}) {
-        this.name = data.name || ""
-        this.mbid = data.mbid || ""
-        this.playcount = data.playcount || "0"
-        this.duration = data.duration || "0"
-        this.url = data.url || ""
-        this.streamable = data.streamable || { fulltrack: "0", "#text": "0" }
+        this.name = data.name || ''
+        this.mbid = data.mbid || ''
+        this.playcount = data.playcount || '0'
+        this.duration = data.duration || '0'
+        this.url = data.url || ''
+        this.streamable = data.streamable || { fulltrack: '0', '#text': '0' }
         this.image = (data.image || []).map((img: any) => ({
             size: img.size,
-            "#text": img["#text"],
+            '#text': img['#text'],
         }))
-        this.artist = data.artist || { name: "", url: "", mbid: "" }
-        this.attr = data["@attr"] || { rank: "" }
+        this.artist = data.artist || { name: '', url: '', mbid: '' }
+        this.attr = data['@attr'] || { rank: '' }
     }
 }
 
@@ -69,19 +69,18 @@ export class LastFmTopTracks {
     constructor(data: {
         toptracks: {
             track: LastFmTrack[]
-            "@attr": LastFmTopTracksAttr
+            '@attr': LastFmTopTracksAttr
         }
     }) {
         // A resposta da API vem em data.toptracks
         this.tracks = data.toptracks.track
-        this.attr = data.toptracks["@attr"]
+        this.attr = data.toptracks['@attr']
     }
 }
 
 export interface TrackDataLastFm {
     artist: string
     name: string
-    userplaycount?: string | number
     url: string
     mbid: string
     date: DateRecentTracks
@@ -90,18 +89,18 @@ export interface TrackDataLastFm {
 
 interface ArtistRecentTracks {
     mbid: string
-    "#text": string
+    '#text': string
 }
 
 interface AlbumRecentTracks {
     mbid: string
-    "#text": string
+    '#text': string
     url?: string
 }
 
 export interface DateRecentTracks {
     uts: string
-    "#text": string
+    '#text': string
 }
 
 export interface trackRecentData {
@@ -111,12 +110,11 @@ export interface trackRecentData {
     mbid: string
     album: AlbumRecentTracks
     name: string
-    "@attr"?: { nowplaying: string }
+    '@attr'?: { nowplaying: string }
     url: string
     date: DateRecentTracks
     playcount: string
-    key: string | ""
-    userplaycount: string | number
+    key: string | ''
 }
 
 interface Attr {
@@ -130,7 +128,7 @@ interface Attr {
 export interface RecentTracks {
     recenttracks: {
         track: trackRecentData[]
-        "@attr"?: Attr
+        '@attr'?: Attr
     }
 
     message?: string
@@ -158,7 +156,6 @@ interface Track {
     artist: LastFmArtist
     album: AlbumRecentTracks
     image: LastFmImage[]
-    userplaycount: string
     userloved: string
     toptags: Tag[]
     wiki: Wiki
@@ -166,12 +163,6 @@ interface Track {
 
 export interface TrackWithPlaycount {
     track: Track
-}
-
-export interface UserPlaycount {
-    user: string
-    trackName: string
-    trackArtist: string
 }
 
 export interface QuantityScrobbles {
@@ -188,15 +179,13 @@ export interface topTracksAllTime {
             artist: LastFmArtist
             url: string
             duration: string
-            "@attr": Attr
+            '@attr': Attr
         }[]
     }
-    userplaycount?: string
 }
 
 export interface GetTracksByPercentage {
     track: trackRecentData
-    userplaycount: QuantityScrobbles
 }
 
 export interface getLastTimeMusicListened {
@@ -217,21 +206,20 @@ export interface ApiStructured {
 const DateSchema = Joi.string()
     .pattern(/^\d{4}-\d{2}-\d{2}$/)
     .custom((value, helpers) => {
-        const isValid = dayjs(value, "YYYY-MM-DD", true).isValid()
+        const isValid = dayjs(value, 'YYYY-MM-DD', true).isValid()
 
         if (!isValid) {
-            return helpers.error("any.invalid")
+            return helpers.error('any.invalid')
         }
 
         return value
     })
     .messages({
-        "string.pattern.base": "Date must be in format YYYY-MM-DD",
-        "any.invalid": "Date does not exist in calendar",
+        'string.pattern.base': 'Date must be in format YYYY-MM-DD',
+        'any.invalid': 'Date does not exist in calendar',
     })
 
 export const rediscoverLovedTracks = Joi.object({
-    fetchInDays: Joi.number().integer().min(10).max(365).default(30),
     distinct: Joi.alternatives()
         .try(Joi.boolean().valid(false), Joi.number().integer().min(1))
         .default(false),
@@ -262,6 +250,13 @@ export interface FetchPageResultSingle {
         page: number
         totalPages: number
     }
+    '@attr': {
+        user: string
+        totalPages: string
+        page: string
+        perPage: string
+        total: string
+    }
 }
 
 export interface ParametersURLInterface {
@@ -282,19 +277,16 @@ export interface ParametersURLInterface {
     format: string
     page?: string
     api_key: string
-
 }
 
-
-
 export type ParamsBySource = {
-    type: "dual"
+    type: 'dual'
     candidate: ParametersURLInterface[]
     comparison: ParametersURLInterface[]
 }
 
 export type RunThroughTypeResult = {
-    type: "dual"
+    type: 'dual'
     dual: {
         candidatePage: FetchPageResultSingle
         comparisonPage: FetchPageResultSingle
@@ -302,17 +294,13 @@ export type RunThroughTypeResult = {
 }
 
 export type CollectedTracksSingle = {
-    type: "single"
+    type: 'single'
     tracks: Map<string, TrackDataLastFm[]>
 }
 
 export type CollectedTracksDual = {
-    type: "dual"
+    type: 'dual'
     tracks: Map<string, TrackDataLastFm[]>
-}
-
-export type TrackWithPlaycountLastListened = Omit<TrackDataLastFm, "userplaycount"> & {
-    userplaycount: string
 }
 
 export type ObjectId = {
@@ -320,7 +308,16 @@ export type ObjectId = {
 }
 
 export type DeleteRoute = {
-    jobId: string,
-    spotifyId: string,
+    jobId: string
+    spotifyId: string
     lastFmUser: string
+}
+
+export type OldComparison = {
+    artist: string
+    name: string
+    url: string
+    mbid: string
+    date: DateRecentTracks
+    key: string
 }
