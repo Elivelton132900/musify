@@ -5,6 +5,7 @@ import { jobIdRediscoverLovedTracks, rediscoverLovedTracks } from "../models/las
 import { LastFmController } from "../controllers/last-fm.controller"
 import { resolveDateDefaults } from "../middlewares/resolve-date-defaults.middleware"
 import { jobWithSameUrlExists } from "../middlewares/job-with-same-url-exists-last-fm.middleware"
+import { csrfProtection } from "../middlewares/csrf-protection.middleware"
 
 export const lastFmRoutes = Router()
 
@@ -18,6 +19,7 @@ lastFmRoutes.get(
 
 lastFmRoutes.post(
     "/lastfm/loved-tracks/jobs",
+    csrfProtection,
     resolveDateDefaults,
     jobWithSameUrlExists,
     celebrate({
@@ -28,6 +30,7 @@ lastFmRoutes.post(
 
 lastFmRoutes.post(
     "/lastfm/loved-tracks/jobs/:jobId/cancel",
+    csrfProtection,
     jobWithSameUrlExists,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
@@ -39,6 +42,7 @@ lastFmRoutes.get("/lastfm/loved-tracks/jobs", expressAsyncHandler(LastFmControll
 
 lastFmRoutes.delete(
     "/lastfm/loved-tracks/jobs/:jobId",
+    csrfProtection,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
     }),

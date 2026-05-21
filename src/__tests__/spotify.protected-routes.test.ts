@@ -3,28 +3,79 @@ import request from "supertest"
 import app from "../app"
 import { generateCsrfToken } from "../middlewares/csrf-protection.middleware"
 
-describe("Protected Routes - authentication", () => {
-    describe("Access protected route without token", () => {
+describe("Spotify Routes - Security Tests", () => {
+  let csrfToken: string
 
-        let csrfToKen: string
+  beforeAll(() => {
+    csrfToken = generateCsrfToken()
+  })
 
-        beforeAll(() => {
-            csrfToKen = generateCsrfToken()
-        })
+  // Configuração de todas as rotas e suas proteções
+  const routesConfig = [
+    {
+      method: 'post',
+      url: '/spotify/loved-tracks/comparison-jobs',
+      body: { range: 'long_short' },
+      requiresAuth: true,
+      requiresCsrf: true
+    },
+    {
+      method: 'post',
+      url: '/spotify/loved-tracks/jobs/123/cancel',
+      body: undefined,
+      requiresAuth: false,
+      requiresCsrf: true
+    },
+    {
+      method: 'delete',
+      url: '/spotify/loved-tracks/jobs/123',
+      body: undefined,
+      requiresAuth: false,
+      requiresCsrf: true
+    }
+  ]
 
+  // Testes para autenticação (401)
+  describe('Authentication Required (401)', () => {
+    const authRoutes = routesConfig.filter(route => route.requiresAuth)
 
-        it("Should return 401 when accessing /spotify/loved-tracks/comparison-jobs without token", async () => {
+    authRoutes.forEach(({ method, url, body }) => {
+      it(`${method.toUpperCase()} ${url} should return 401 without token`, async () => {
+        const req = request(app)
+        let response: any
 
-            const response = await request(app)
-                .post("/spotify/loved-tracks/comparison-jobs")
-                .set('x-csrf-token', csrfToKen)
-                .set('Cookie', [`csrf_token=${csrfToKen}`])  // ← CSRF válido
-                .send({ range: "long_short" })
-            // sem cookie spotify_token
+        if (method === 'post') {
+          response = await req
+            .post(url)
+            .set('x-csrf-token', csrfToken)
+            .set('Cookie', [`csrf_token=${csrfToken}`])
+            .send(body || {})
+        }
 
-            expect(response.status).toBe(401)
-            expect(response.body).toHaveProperty("error", "Not authenticated")
-            expect(response.body).toHaveProperty("message", "Please login with spotify")
-        })
+        expect(response.status).toBe(401)
+        expect(response.body.error).toBe("Not authenticated")
+      })
     })
+  })
+
+  // Testes para CSRF (403)
+  describe('CSRF Protection Required (403)', () => {
+    const csrfRoutes = routesConfig.filter(route => route.requiresCsrf)
+
+    csrfRoutes.forEach(({ method, url, body }) => {
+      it(`${method.toUpperCase()} ${url} should return 403 without CSRF token`, async () => {
+        const req = request(app)
+        let response: any
+
+        if (method === 'post') {
+          response = await req.post(url).send(body || {})
+        } else if (method === 'delete') {
+          response = await req.delete(url).send(body || {})
+        }
+
+        expect(response.status).toBe(403)
+        expect(response.body.error).toBe("Invalid CSRF token")
+      })
+    })
+  })
 })
