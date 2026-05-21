@@ -1,5 +1,5 @@
-import { Worker } from 'bullmq'
-import { JobCanceledError } from '../utils/spotifyUtils'
+import { Worker } from "bullmq"
+import { JobCanceledError } from "../utils/spotifyUtils"
 import {
     descompressMusics,
     fetchLastFmNotInCache,
@@ -7,38 +7,38 @@ import {
     fetchTracksNotInCacheLovedTracks,
     filterByLastFmHistory,
     throwIfCanceledFusion,
-} from '../utils/fusionUtils'
-import { TimeRange, TrackDataSpotify } from '../models/spotify.model'
-import { FusionBody, LastFmHistory } from '../models/fusion.model'
-import { redis } from '../infra/redis'
-import { rediscoverFusionQueueEvents } from '../queues/rediscoverFusion.queue'
+} from "../utils/fusionUtils"
+import { TimeRange, TrackDataSpotify } from "../models/spotify.model"
+import { FusionBody, LastFmHistory } from "../models/fusion.model"
+import { redis } from "../infra/redis"
+import { rediscoverFusionQueueEvents } from "../queues/rediscoverFusion.queue"
 
 const abortControllers = new Map<string, AbortController>()
 
 export const rediscoverFusionWorker = new Worker(
-    'rediscover-fusion',
+    "rediscover-fusion",
     async (job) => {
-        if (job.name !== 'rediscover-fusion') return
+        if (job.name !== "rediscover-fusion") return
 
-        console.log('entrei no worker, job id: ', job.id)
+        console.log("entrei no worker, job id: ", job.id)
         const controller = new AbortController()
         abortControllers.set(job.id!, controller)
         const { signal } = controller
 
         const { params } = job.data as { params: FusionBody }
         const { access_token, spotifyId, compare, lastFmUser } = params
-        console.log('COMPAREEEEEEEEEE: ', compare)
+        console.log("COMPAREEEEEEEEEE: ", compare)
         await throwIfCanceledFusion(job, signal, spotifyId, compare)
         if (signal.aborted) throw new JobCanceledError()
 
-        console.log('ACCESS TOKEEEEEEEEEEEEEEEEEEEEEEEN ', access_token)
+        console.log("ACCESS TOKEEEEEEEEEEEEEEEEEEEEEEEN ", access_token)
 
         if (compare.firstCompare === TimeRange.loved_tracks) {
-            throw new Error('Fist compare can not be Loved Tracks')
+            throw new Error("Fist compare can not be Loved Tracks")
         }
 
         if (compare.secondCompare !== TimeRange.loved_tracks) {
-            throw new Error('Second compare must be Loved Track')
+            throw new Error("Second compare must be Loved Track")
         }
 
         const lovedTracks = await redis.getBuffer(
@@ -61,7 +61,7 @@ export const rediscoverFusionWorker = new Worker(
                 abortControllers,
             )
         }
-        console.log('\n\n\n\n\n FIRST CCOMPAREEEEE \n\n\n\n ', lastFmCompare)
+        console.log("\n\n\n\n\n FIRST CCOMPAREEEEE \n\n\n\n ", lastFmCompare)
 
         if (!firstCompare) {
             await fetchSingleRangeNotInCache(
@@ -92,7 +92,7 @@ export const rediscoverFusionWorker = new Worker(
         )
 
         if (redisCompressedLastFm === null || redisCompressedSpotify === null) {
-            throw new Error('Cache not found')
+            throw new Error("Cache not found")
         }
 
         const descompressedLastFm = descompressMusics<LastFmHistory[]>(
@@ -117,17 +117,17 @@ export const rediscoverFusionWorker = new Worker(
     },
 )
 
-rediscoverFusionWorker.on('ready', () => {
-    console.log('fusion worker: estou pronto')
+rediscoverFusionWorker.on("ready", () => {
+    console.log("fusion worker: estou pronto")
 })
 
-rediscoverFusionWorker.on('failed', async (job, err) => {
+rediscoverFusionWorker.on("failed", async (job, err) => {
     if (!job) return
 
-    console.error('Job falhou ', job?.id, err.message)
+    console.error("Job falhou ", job?.id, err.message)
 
     // se foi cancelado, remove
-    if (err.message.includes('DELETED')) {
+    if (err.message.includes("DELETED")) {
         try {
             await job.remove()
             await redis.del(`rediscover:delete:spotify:${job.id}`)
@@ -138,10 +138,10 @@ rediscoverFusionWorker.on('failed', async (job, err) => {
     }
 })
 
-rediscoverFusionQueueEvents.on('removed', (job) => {
+rediscoverFusionQueueEvents.on("removed", (job) => {
     const controller = abortControllers.get(job.jobId)
     if (controller) {
-        console.log('Job removido, abortando execução: ', job.jobId)
+        console.log("Job removido, abortando execução: ", job.jobId)
         controller.abort()
         abortControllers.delete(job.jobId)
     }

@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken'
-import { Request, Response, NextFunction } from 'express'
-import { rediscoverSpotifyQueue } from '../queues/rediscoverSpotify.queue'
-import { SpotifyJWTPayload } from '../models/spotify.auth.model'
+import jwt from "jsonwebtoken"
+import { Request, Response, NextFunction } from "express"
+import { rediscoverSpotifyQueue } from "../queues/rediscoverSpotify.queue"
+import { SpotifyJWTPayload } from "../models/spotify.auth.model"
 
 const extractJobData = (job: any) => {
     if (job.data.params) {
@@ -29,11 +29,11 @@ export const jobWithSameUrlExists = async (
         const { userId } = decoded
         const rangeToCompare = req.body.range
 
-        console.log('rangeToCompare:', rangeToCompare)
-        console.log('userId:', userId)
+        console.log("rangeToCompare:", rangeToCompare)
+        console.log("userId:", userId)
 
         const allJobs = await rediscoverSpotifyQueue.getJobs(
-            ['active', 'waiting', 'completed'],
+            ["active", "waiting", "completed"],
             0,
             -1,
         )
@@ -42,34 +42,34 @@ export const jobWithSameUrlExists = async (
 
         const jobExists = allJobs.some((job) => {
             const { spotifyId: jobUserId, firstCompare, secondCompare } = extractJobData(job)
-            
+
             if (!firstCompare || !secondCompare) {
                 console.log(`⚠️ Job ${job.id} sem dados válidos, ignorando`)
                 return false
             }
-            
-            const first = firstCompare.replace('_term', '')
-            const second = secondCompare.replace('_term', '').replace('_tracks', '')
+
+            const first = firstCompare.replace("_term", "")
+            const second = secondCompare.replace("_term", "").replace("_tracks", "")
             const jobRangeKey = `${first}_${second}`
-            
+
             const isMatch = jobUserId === userId && jobRangeKey === rangeToCompare
-            
+
             if (isMatch) {
                 console.log(`✅ Match encontrado no job ${job.id}: ${jobRangeKey}`)
             }
-            
+
             return isMatch
         })
 
         if (jobExists) {
             return res.status(409).json({
-                error: 'Already exists a job with the same parameters'
+                error: "Already exists a job with the same parameters"
             })
         }
 
         return next()
     } catch (error) {
-        console.error('Erro:', error)
-        return next(error instanceof Error ? error : new Error('Unknown Error'))
+        console.error("Erro:", error)
+        return next(error instanceof Error ? error : new Error("Unknown Error"))
     }
 }

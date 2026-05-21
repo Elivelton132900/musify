@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from 'express'
-import dayjs from 'dayjs'
-import minMax from 'dayjs/plugin/minMax'
-import axios from 'axios'
-import { UserInformation } from '../models/last-fm.auth.model'
-import { redis } from '../infra/redis'
+import { Request, Response, NextFunction } from "express"
+import dayjs from "dayjs"
+import minMax from "dayjs/plugin/minMax"
+import axios from "axios"
+import { UserInformation } from "../models/last-fm.auth.model"
+import { redis } from "../infra/redis"
 
 dayjs.extend(minMax)
 
@@ -14,12 +14,12 @@ async function userAccountCreation(user: string) {
 
     if (!userAccountCreationExists) {
         const params = {
-            method: 'user.getinfo',
+            method: "user.getinfo",
             user: user,
             api_key: process.env.LAST_FM_API_KEY!,
-            format: 'json',
+            format: "json",
         }
-        const endpoint = 'https://ws.audioscrobbler.com/2.0/'
+        const endpoint = "https://ws.audioscrobbler.com/2.0/"
         const userInfo = (await axios.get(endpoint, {
             params,
         })) as UserInformation
@@ -29,7 +29,7 @@ async function userAccountCreation(user: string) {
         await redis.set(
             `rediscover:${user}:accountCreation`,
             String(unixtimeAccountCreation),
-            'EX',
+            "EX",
             60 * 60 * 24 * 10,
         )
 
@@ -49,7 +49,7 @@ export async function resolveDateDefaults(
 
 
         if (!userLastFm) {
-            return next(new Error('Last.FM user not found in session'))
+            return next(new Error("Last.FM user not found in session"))
         }
         const userAccountCreationUnixDate = Number(
             await userAccountCreation(userLastFm),
@@ -79,7 +79,7 @@ export async function resolveDateDefaults(
         if (candidateFrom?.isBefore(comparisonFrom)) {
             return next(
                 new Error(
-                    'invalid comparison period: Candidate period must start after the comparison period begins',
+                    "invalid comparison period: Candidate period must start after the comparison period begins",
                 ),
             )
         }
@@ -90,7 +90,7 @@ export async function resolveDateDefaults(
         if (hasOverlap) {
             return next(
                 new Error(
-                    'Invalid comparison period: Comparison period must not overlap with the candidate period',
+                    "Invalid comparison period: Comparison period must not overlap with the candidate period",
                 ),
             )
         }
@@ -99,7 +99,7 @@ export async function resolveDateDefaults(
         if (comparisonFrom?.isAfter(comparisonTo)) {
             return next(
                 new Error(
-                    "'Invalid comparison period: comparisonFrom' must be earlier than 'comparisonTo'",
+                    `"Invalid comparison period: comparisonFrom" must be earlier than "comparisonTo"`,
                 ),
             )
         }
@@ -108,7 +108,7 @@ export async function resolveDateDefaults(
         if (candidateFrom?.isAfter(candidateTo)) {
             return next(
                 new Error(
-                    "Invalid candidate period: 'candidateFrom' must be earlier than 'candidateTo'",
+                    `"Invalid candidate period: "candidateFrom" must be earlier than "candidateTo"`,
                 ),
             )
         }
@@ -122,7 +122,7 @@ export async function resolveDateDefaults(
         if (dateParametersBeforeCreationAccount) {
             return next(
                 new Error(
-                    'Date parameters must be after account creation date',
+                    "Date parameters must be after account creation date",
                 ),
             )
         }
@@ -134,7 +134,7 @@ export async function resolveDateDefaults(
             candidateTo?.isAfter(dayjs().utc())
 
         if (dateParametersInFuture) {
-            return next(new Error('Date parameters must not be in the future'))
+            return next(new Error("Date parameters must not be in the future"))
         }
 
 
@@ -144,6 +144,6 @@ export async function resolveDateDefaults(
             return next(error)
         }
 
-        return next(new Error('Unexpected error'))
+        return next(new Error("Unexpected error"))
     }
 }

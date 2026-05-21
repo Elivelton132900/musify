@@ -1,36 +1,36 @@
-import { SpotifyMapperSavedTracks } from './../utils/spotifyMapper'
+import { SpotifyMapperSavedTracks } from "./../utils/spotifyMapper"
 import {
     PaginatedResponse,
     SpotifySavedTracks,
     SpotifyUserTopItems,
     TimeRange,
     TrackDataSpotify,
-} from './../models/spotify.model'
-import axios from 'axios'
-import { SpotifyMapper } from '../utils/spotifyMapper'
+} from "./../models/spotify.model"
+import axios from "axios"
+import { SpotifyMapper } from "../utils/spotifyMapper"
 import {
     findTracksNotInSecondRange,
     JobCanceledError,
     throwIfCanceled,
-} from '../utils/spotifyUtils'
-import { redis } from '../infra/redis'
-import zlib from 'zlib'
-import { Job } from 'bullmq'
-import { throwIfCanceledFusion } from '../utils/fusionUtils'
+} from "../utils/spotifyUtils"
+import { redis } from "../infra/redis"
+import zlib from "zlib"
+import { Job } from "bullmq"
+import { throwIfCanceledFusion } from "../utils/fusionUtils"
 
 export class SpotifyService {
     async fetchTopTracks(
         access_token: string,
-        time_range: Exclude<keyof typeof TimeRange, 'loved_tracks'>,
+        time_range: Exclude<keyof typeof TimeRange, "loved_tracks">,
         job: Job,
         signal: AbortSignal,
     ): Promise<SpotifyUserTopItems[]> {
-        console.log('🔍 fetchTopTracks - job.id:', job?.id)
+        console.log("🔍 fetchTopTracks - job.id:", job?.id)
         console.log(
-            '🔍 fetchTopTracks - job.data:',
+            "🔍 fetchTopTracks - job.data:",
             JSON.stringify(job?.data, null, 2),
         )
-        console.log('🔍 fetchTopTracks - time_range:', time_range)
+        console.log("🔍 fetchTopTracks - time_range:", time_range)
         const items: SpotifyUserTopItems[] = []
         const timeRangeValue = TimeRange[time_range]
         let endpoint: string = `https://api.spotify.com/v1/me/top/tracks?time_range=${timeRangeValue}&limit=50`
@@ -44,21 +44,21 @@ export class SpotifyService {
             })
             items.push(...response.data.items)
             const next = response.data.next
-            typeof next === 'string' &&
-                next.includes('https://api.spotify.com/v1/')
+            typeof next === "string" &&
+                next.includes("https://api.spotify.com/v1/")
 
             if (
-                typeof next === 'string' &&
-                next.includes('https://api.spotify.com/v1/')
+                typeof next === "string" &&
+                next.includes("https://api.spotify.com/v1/")
             ) {
                 console.log(
-                    'second do: ',
+                    "second do: ",
                     response.data.offset,
                     response.data.total,
                 )
                 endpoint = next
             } else {
-                endpoint = ''
+                endpoint = ""
             }
 
             const canceledSpotify = await redis.get(
@@ -95,7 +95,7 @@ export class SpotifyService {
                 )
                 throw new JobCanceledError()
             }
-        } while (endpoint.includes('https://api.spotify.com/'))
+        } while (endpoint.includes("https://api.spotify.com/"))
 
         return items
     }
@@ -109,10 +109,10 @@ export class SpotifyService {
         firstCompare: TimeRange
     ) {
         const items: SpotifySavedTracks[] = []
-        let endpoint = 'https://api.spotify.com/v1/me/tracks?limit=50'
+        let endpoint = "https://api.spotify.com/v1/me/tracks?limit=50"
         do {
             const throwed = await throwIfCanceled(job, signal)
-            const compare = {firstCompare, secondCompare: TimeRange.loved_tracks}
+            const compare = { firstCompare, secondCompare: TimeRange.loved_tracks }
             const fusionThrowed = await throwIfCanceledFusion(job, signal, spotifyId, compare)
             if (throwed || fusionThrowed) throw new JobCanceledError()
             const response = await axios.get<
@@ -122,17 +122,17 @@ export class SpotifyService {
             })
 
             items.push(...response.data.items)
-            console.log('progressão', response.data.offset, response.data.total)
+            console.log("progressão", response.data.offset, response.data.total)
 
             const next = response.data.next
             if (
-                typeof next === 'string' &&
-                next.includes('https://api.spotify.com/v1/')
+                typeof next === "string" &&
+                next.includes("https://api.spotify.com/v1/")
             ) {
                 endpoint = next
             } else {
-                endpoint = ''
-                console.log('endpoint igual aspas vazias')
+                endpoint = ""
+                console.log("endpoint igual aspas vazias")
             }
             const canceled = await redis.get(
                 `rediscover:cancel:spotify:${job.id}`,
@@ -153,9 +153,9 @@ export class SpotifyService {
                     break
                 }
             }
-        } while (endpoint.includes('https://api.spotify.com/'))
+        } while (endpoint.includes("https://api.spotify.com/"))
 
-        console.log('vou retornar')
+        console.log("vou retornar")
         return items
     }
 
@@ -173,7 +173,7 @@ export class SpotifyService {
         job: Job,
         signal: AbortSignal,
     ) {
-        console.log('🔍 syncTopMusics - time_range recebido:', time_range)
+        console.log("🔍 syncTopMusics - time_range recebido:", time_range)
 
         if (!time_range) {
             throw new Error(`time_range is undefined!`)
@@ -194,7 +194,7 @@ export class SpotifyService {
                 await redis.set(
                     `spotify:users:${spotifyId}:${time_range}`,
                     compressedTopMusics,
-                    'EX',
+                    "EX",
                     60 * 60 * 24,
                 )
 
@@ -203,10 +203,10 @@ export class SpotifyService {
                 )
                 return topMusicsMapped
             } else {
-                type TimeRangeKey = 'short' | 'medium' | 'long'
+                type TimeRangeKey = "short" | "medium" | "long"
                 const timeRangeKey = time_range.replace(
-                    '_term',
-                    '',
+                    "_term",
+                    "",
                 ) as TimeRangeKey
                 const topMusics: SpotifyUserTopItems[] =
                     await this.fetchTopTracks(
@@ -218,7 +218,7 @@ export class SpotifyService {
 
                 const SpotifyResultSize = Buffer.byteLength(
                     JSON.stringify(topMusics),
-                    'utf8',
+                    "utf8",
                 )
                 console.log(
                     `📊 Spotify (antes da compressão): ${(SpotifyResultSize / 1024).toFixed(2)} KB / ${(SpotifyResultSize / (1024 * 1024)).toFixed(2)} MB`,
@@ -237,7 +237,7 @@ export class SpotifyService {
                 await redis.set(
                     `spotify:users:${spotifyId}:${time_range}`,
                     compressedTopMusics,
-                    'EX',
+                    "EX",
                     60 * 60 * 24,
                 )
 

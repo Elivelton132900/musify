@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import "dotenv/config"
 import {
     ParamsBySource,
     RunThroughTypeResult,
@@ -8,25 +8,25 @@ import {
     CollectedTracksDual,
     RecentTracks,
     trackRecentData,
-} from './../models/last-fm.model'
-import { ParamsHash } from '../models/last-fm.auth.model'
-import crypto from 'crypto'
-import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import { ParametersURLInterface } from '../models/last-fm.model'
-import axios from 'axios'
-import { AxiosError } from 'axios'
-import { Agent as HttpsAgent } from 'https'
-import { Agent as HttpAgent } from 'http'
-import { redis } from '../infra/redis'
-import { Job } from 'bullmq'
+} from "./../models/last-fm.model"
+import { ParamsHash } from "../models/last-fm.auth.model"
+import crypto from "crypto"
+import dayjs from "dayjs"
+import utc from "dayjs/plugin/utc"
+import { ParametersURLInterface } from "../models/last-fm.model"
+import axios from "axios"
+import { AxiosError } from "axios"
+import { Agent as HttpsAgent } from "https"
+import { Agent as HttpAgent } from "http"
+import { redis } from "../infra/redis"
+import { Job } from "bullmq"
 
 dayjs.extend(utc)
 
 export function createHash(content: ParamsHash) {
     const sortedKeys = Object.keys(content).sort()
 
-    let concatenated = ''
+    let concatenated = ""
     for (const key of sortedKeys) {
         const typedKey = key as keyof ParamsHash
         concatenated += key + content[typedKey]
@@ -35,9 +35,9 @@ export function createHash(content: ParamsHash) {
     concatenated += process.env.LAST_FM_SHARED_SECRET
 
     const api_sig: string = crypto
-        .createHash('md5')
+        .createHash("md5")
         .update(concatenated)
-        .digest('hex')
+        .digest("hex")
 
     return api_sig
 }
@@ -56,9 +56,9 @@ export function deleteDuplicateKeepLatest<
     const groups = new Map<string, T[]>()
     for (const track of tracks) {
         const artist =
-            typeof track?.artist === 'string'
+            typeof track?.artist === "string"
                 ? track.artist
-                : (track.artist?.['#text'] ?? '')
+                : (track.artist?.["#text"] ?? "")
 
         const key = normalize(track.name, artist)
 
@@ -86,7 +86,7 @@ export function deleteTracksNotInRange<
     T extends {
         name: string
         artist: string
-        date: { uts?: string | number; '#text'?: string }
+        date: { uts?: string | number; "#text"?: string }
     },
 >(
     rangeDays: number,
@@ -96,14 +96,14 @@ export function deleteTracksNotInRange<
 ): T[] {
     const tracks = oldTracks
     // Data limite = referenceDate - rangeDays
-    const limitDate = referenceDate.subtract(rangeDays, 'days').unix()
+    const limitDate = referenceDate.subtract(rangeDays, "days").unix()
     const groups = new Map<string, T>()
 
     for (const track of tracks) {
         const artist =
-            typeof track.artist === 'string'
+            typeof track.artist === "string"
                 ? track.artist
-                : track.artist['#text']
+                : track.artist["#text"]
 
         const key = normalize(track.name, artist)
         const uts = Number(track?.date?.uts)
@@ -119,13 +119,13 @@ export function deleteTracksNotInRange<
         const daysWithoutListening = referenceDate
             .utc()
             .diff(
-                dayjs.unix(Number(updated?.date.uts)).utc().startOf('day'),
-                'day'
+                dayjs.unix(Number(updated?.date.uts)).utc().startOf("day"),
+                "day"
             )
 
         if (daysWithoutListening > rangeDays) {
             const updatedTrack = { ...updated! }
-            updatedTrack.date!['#text'] =
+            updatedTrack.date!["#text"] =
                 `Not listened during the analyzed period (${rangeDays} days)`
             groups.set(key, updatedTrack)
         }
@@ -170,14 +170,14 @@ export function distinctArtists(
 
 
 export const normalize = (name: string, artist: string) => {
-    return (name + '-' + artist)
+    return (name + "-" + artist)
         .toLowerCase()
-        .normalize('NFKD') // separa acentos
-        .replace(/[\u0300-\u036f]/g, '') // remove acentos
-        .normalize('NFKC') // normaliza de volta
-        .replace(/[\u00A0\u200B\uFEFF]/g, ' ') // NBSP, ZWSP, BOM → espaço
-        .replace(/[-–—−]/g, '-') // normaliza tipos de hífen
-        .replace(/\s+/g, ' ') // normaliza múltiplos espaços
+        .normalize("NFKD") // separa acentos
+        .replace(/[\u0300-\u036f]/g, "") // remove acentos
+        .normalize("NFKC") // normaliza de volta
+        .replace(/[\u00A0\u200B\uFEFF]/g, " ") // NBSP, ZWSP, BOM → espaço
+        .replace(/[-–—−]/g, "-") // normaliza tipos de hífen
+        .replace(/\s+/g, " ") // normaliza múltiplos espaços
         .trim()
 }
 
@@ -198,8 +198,8 @@ export function isRetryableAxiosError(error: unknown): boolean {
     if (!(error instanceof AxiosError)) return false
 
     const isTimeout =
-        error.code === 'ECONNABORTED' ||
-        error.message.toLowerCase().includes('timeout')
+        error.code === "ECONNABORTED" ||
+        error.message.toLowerCase().includes("timeout")
 
     const retryableStatus = [500, 502, 503, 504]
     const isRetryableStatus = retryableStatus.includes(
@@ -212,14 +212,14 @@ export function isRetryableAxiosError(error: unknown): boolean {
 function abortableDelay(ms: number, signal?: AbortSignal) {
     return new Promise<void>((resolve, reject) => {
         if (signal?.aborted) {
-            return reject(new Error('Aborted'))
+            return reject(new Error("Aborted"))
         }
 
         const timeout = setTimeout(resolve, ms)
 
-        signal?.addEventListener('abort', () => {
+        signal?.addEventListener("abort", () => {
             clearTimeout(timeout)
-            reject(new Error('Aborted during delay'))
+            reject(new Error("Aborted during delay"))
         })
     })
 }
@@ -244,7 +244,7 @@ export async function safeAxiosGet<T>(
 
             if (data?.error) {
                 if (!silent)
-                    console.warn('Last FM erro: ', data.error, data.message)
+                    console.warn("Last FM erro: ", data.error, data.message)
 
                 if ([8].includes(data.error) && attempt < retries) {
                     await abortableDelay(delay, signal)
@@ -260,7 +260,7 @@ export async function safeAxiosGet<T>(
                 const error = e as AxiosError
                 const retryable = isRetryableAxiosError(error)
                 if (retryable && !silent) {
-                    console.warn('Retryable Axios error:', {
+                    console.warn("Retryable Axios error:", {
                         code: error.code,
                         status: error.response?.status,
                         url: error.config?.url,
@@ -273,10 +273,10 @@ export async function safeAxiosGet<T>(
                     }
 
                     console.error(
-                        `🚨 Falha Axios (${error.response?.status ?? 'sem status'}):`,
+                        `🚨 Falha Axios (${error.response?.status ?? "sem status"}):`,
                         error.message,
                     )
-                    console.log('erro na url ', url)
+                    console.log("erro na url ", url)
                     console.error(error.response?.data)
                     console.error(error.response?.status)
                     console.error(error.config?.url)
@@ -295,21 +295,21 @@ export async function safeAxiosGet<T>(
 }
 function returnDates(params: ParametersURLInterface) {
     const startDayFromComparison =
-        typeof params.comparisonFrom === 'string'
-            ? String(dayjs(params.comparisonFrom).startOf('day').utc().unix())
-            : ''
+        typeof params.comparisonFrom === "string"
+            ? String(dayjs(params.comparisonFrom).startOf("day").utc().unix())
+            : ""
     const endDayToComparison =
-        typeof params.comparisonTo === 'string'
-            ? String(dayjs(params.comparisonTo).endOf('day').utc().unix())
-            : ''
+        typeof params.comparisonTo === "string"
+            ? String(dayjs(params.comparisonTo).endOf("day").utc().unix())
+            : ""
 
     const startDayFromCandidate =
-        typeof params.candidateFrom === 'string'
-            ? String(dayjs(params.candidateFrom).startOf('day').utc().unix())
+        typeof params.candidateFrom === "string"
+            ? String(dayjs(params.candidateFrom).startOf("day").utc().unix())
             : params.from
     const endDayToCandidate =
-        typeof params.candidateTo === 'string'
-            ? String(dayjs(params.candidateTo).endOf('day').utc().unix())
+        typeof params.candidateTo === "string"
+            ? String(dayjs(params.candidateTo).endOf("day").utc().unix())
             : params.to
 
     return {
@@ -328,7 +328,7 @@ export function createParams(params: ParametersURLInterface): ParamsBySource {
         endDayToCandidate,
     } = returnDates(params)
     return {
-        type: 'dual',
+        type: "dual",
         candidate: [
             {
                 ...params,
@@ -350,7 +350,7 @@ export function createParams(params: ParametersURLInterface): ParamsBySource {
 
 function normalizeRecentTrack(track: trackRecentData): TrackDataLastFm {
     const artist =
-        typeof track.artist === 'string' ? track.artist : track.artist['#text']
+        typeof track.artist === "string" ? track.artist : track.artist["#text"]
 
     return {
         artist,
@@ -379,7 +379,7 @@ export async function fetchPageSingle(
     params: ParametersURLInterface,
 ): Promise<FetchPageResultSingle | null> {
     if (signal?.aborted) throw new JobCanceledError()
-    const endpoint = 'https://ws.audioscrobbler.com/2.0/'
+    const endpoint = "https://ws.audioscrobbler.com/2.0/"
     const response = await safeAxiosGet<RecentTracks>(endpoint, params, {
         signal,
     })
@@ -389,15 +389,15 @@ export async function fetchPageSingle(
     return {
         tracks: normalizeRecentTracks(response.recenttracks.track),
         pagination: {
-            page: Number(response.recenttracks['@attr']?.page),
-            totalPages: Number(response.recenttracks['@attr']?.totalPages),
+            page: Number(response.recenttracks["@attr"]?.page),
+            totalPages: Number(response.recenttracks["@attr"]?.totalPages),
         },
         "@attr": {
-            user: response.recenttracks['@attr']?.user ?? "",  
-            totalPages: response.recenttracks['@attr']?.totalPages ?? "",
-            page: response.recenttracks['@attr']?.page ?? "",
-            perPage: response.recenttracks['@attr']?.perPage ?? "", 
-            total: response.recenttracks['@attr']?.total ?? ""
+            user: response.recenttracks["@attr"]?.user ?? "",
+            totalPages: response.recenttracks["@attr"]?.totalPages ?? "",
+            page: response.recenttracks["@attr"]?.page ?? "",
+            perPage: response.recenttracks["@attr"]?.perPage ?? "",
+            total: response.recenttracks["@attr"]?.total ?? ""
         }
     }
 }
@@ -406,7 +406,7 @@ async function runThroughType(
     signal: AbortSignal,
     createdParamsList: ParamsBySource,
 ): Promise<RunThroughTypeResult | null> {
-    if (createdParamsList.type !== 'dual') return null
+    if (createdParamsList.type !== "dual") return null
 
     if (signal?.aborted) throw new JobCanceledError()
     const candidateFirst = await fetchPageSingle(
@@ -423,7 +423,7 @@ async function runThroughType(
     if (!candidateFirst || !comparisonFirst) return null
 
     return {
-        type: 'dual',
+        type: "dual",
         dual: {
             candidatePage: candidateFirst,
             comparisonPage: comparisonFirst,
@@ -439,12 +439,12 @@ async function collectPaginatedTracksSingle(
 ): Promise<CollectedTracksSingle> {
     const collected: TrackDataLastFm[] = []
     collected.push(...firstPage.tracks)
-    
+
     const totalPages = firstPage.pagination.totalPages
-    const totalTracksFromApi = Number(firstPage['@attr'].total)  // total real (ex: 12254)
-    
+    const totalTracksFromApi = Number(firstPage["@attr"].total)  // total real (ex: 12254)
+
     let cumulativeTracks = firstPage.tracks.length  // ← começa com a quantidade da 1ª página
-    
+
     console.log(`Página 1 de ${totalPages} (+${firstPage.tracks.length} tracks)`)
     console.log(`Track ${cumulativeTracks} de ${totalTracksFromApi}`)
 
@@ -464,7 +464,7 @@ async function collectPaginatedTracksSingle(
 
         const tracksInThisPage = data.tracks.length
         cumulativeTracks += tracksInThisPage
-        
+
         console.log(`Página ${page} de ${totalPages} (+${tracksInThisPage} tracks)`)
         console.log(`Track ${cumulativeTracks} de ${totalTracksFromApi}`)
 
@@ -511,15 +511,15 @@ export async function runThroughPages(
         if (signal?.aborted) throw new JobCanceledError()
 
         return {
-            type: 'dual',
+            type: "dual",
             tracks: new Map<string, TrackDataLastFm[]>([
-                ['candidate', candidateCollected.tracks.get('single') ?? []],
-                ['comparison', comparisonCollected.tracks.get('single') ?? []],
+                ["candidate", candidateCollected.tracks.get("single") ?? []],
+                ["comparison", comparisonCollected.tracks.get("single") ?? []],
             ]),
         }
     } catch (e) {
         if (signal.aborted) {
-            console.log('Execução abortada corretamente')
+            console.log("Execução abortada corretamente")
             throw e
         }
         throw e
@@ -530,9 +530,9 @@ export function normalizeTracks(oldComparisonTracks: TrackDataLastFm[]) {
     const normalized: TrackDataLastFm[] = oldComparisonTracks.map((t) => ({
         ...t,
         key: normalize(
-            t.name ?? '',
-            (typeof t.artist === 'string' ? t.artist : t?.artist['#text']) ??
-                '',
+            t.name ?? "",
+            (typeof t.artist === "string" ? t.artist : t?.artist["#text"]) ??
+            "",
         ),
     }))
 
@@ -606,9 +606,9 @@ export function buildRediscoverCacheKey(
     }
 
     const hash = crypto
-        .createHash('sha1')
+        .createHash("sha1")
         .update(JSON.stringify(normalized))
-        .digest('hex')
+        .digest("hex")
     return `lastfm:rediscover:result:${normalized.user}:${hash}`
 }
 
@@ -619,7 +619,7 @@ export function buildCacheKey(user: string, hash: string) {
 
 export class JobCanceledError extends Error {
     constructor() {
-        super('JOB_CANCELED_OR_DELETED')
+        super("JOB_CANCELED_OR_DELETED")
     }
 }
 

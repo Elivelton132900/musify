@@ -1,5 +1,5 @@
-import { Joi } from 'celebrate'
-import { TimeRange } from './spotify.model'
+import { Joi } from "celebrate"
+import { TimeRange } from "./spotify.model"
 
 export interface FusionBody {
     access_token: string

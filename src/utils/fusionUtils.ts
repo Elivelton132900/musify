@@ -1,34 +1,34 @@
-import dayjs from 'dayjs'
-import { TimeRange, TrackDataSpotify } from '../models/spotify.model'
-import { Job } from 'bullmq'
-import { redis } from '../infra/redis'
-import { safeAxiosGet } from './lastFmUtils'
-import { JobCanceledError } from './spotifyUtils'
-import { RecentTracks, trackRecentData } from '../models/last-fm.model'
-import zlib from 'zlib'
-import { lastFmFusionFormat, LastFmHistory } from '../models/fusion.model'
-import { SpotifyService } from '../services/spotify.service'
-import { lastFmMapper } from './lastFmMapper'
-import { fusionMapper } from './fusionMapper'
-import { SpotifyMapper, SpotifyMapperSavedTracks } from './spotifyMapper'
+import dayjs from "dayjs"
+import { TimeRange, TrackDataSpotify } from "../models/spotify.model"
+import { Job } from "bullmq"
+import { redis } from "../infra/redis"
+import { safeAxiosGet } from "./lastFmUtils"
+import { JobCanceledError } from "./spotifyUtils"
+import { RecentTracks, trackRecentData } from "../models/last-fm.model"
+import zlib from "zlib"
+import { lastFmFusionFormat, LastFmHistory } from "../models/fusion.model"
+import { SpotifyService } from "../services/spotify.service"
+import { lastFmMapper } from "./lastFmMapper"
+import { fusionMapper } from "./fusionMapper"
+import { SpotifyMapper, SpotifyMapperSavedTracks } from "./spotifyMapper"
 
 export const dateBasedOnRange = (range: {
     firstCompare: TimeRange
     secondCompare: TimeRange.loved_tracks
 }): string[] => {
-    const finalDate = dayjs().format('YYYY-MM-DD')
+    const finalDate = dayjs().format("YYYY-MM-DD")
 
     if (range.firstCompare === TimeRange.long) {
-        const initialDate = dayjs().subtract(12, 'month').format('YYYY-MM-DD')
+        const initialDate = dayjs().subtract(12, "month").format("YYYY-MM-DD")
 
         return [initialDate, finalDate]
     } else if (range.firstCompare === TimeRange.medium) {
-        const initialDate = dayjs().subtract(6, 'month').format('YYYY-MM-DD')
+        const initialDate = dayjs().subtract(6, "month").format("YYYY-MM-DD")
 
         return [initialDate, finalDate]
     }
 
-    const initialDate = dayjs().subtract(4, 'week').format('YYYY-MM-DD')
+    const initialDate = dayjs().subtract(4, "week").format("YYYY-MM-DD")
 
     return [initialDate, finalDate]
 }
@@ -39,12 +39,12 @@ function normalizeString(str: string): string {
             .toLowerCase()
             .trim()
             // Remove pontuação e caracteres especiais
-            .replace(/[^\w\s]/g, '')
+            .replace(/[^\w\s]/g, "")
             // Normaliza espaços múltiplos
-            .replace(/\s+/g, ' ')
+            .replace(/\s+/g, " ")
             // Remove acentos (opcional)
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
     )
 }
 
@@ -53,8 +53,8 @@ export function filterByLastFmHistory(
     lastFmHistory: LastFmHistory[],
 ): TrackDataSpotify[] {
     if (!lastFmHistory || lastFmHistory.length === 0) {
-        console.warn('there is no Last Fm history.')
-        throw new Error('No Last Fm history found')
+        console.warn("there is no Last Fm history.")
+        throw new Error("No Last Fm history found")
     }
 
     const listenedTracks = new Set(
@@ -66,7 +66,7 @@ export function filterByLastFmHistory(
 
     const trulyForgottenTracks = spotifyForgottenTracks.filter((track) => {
         const trackKey =
-            `${normalizeString(track.name || '')}|${normalizeString(track.artists?.[0]?.name || '')}`.toLowerCase()
+            `${normalizeString(track.name || "")}|${normalizeString(track.artists?.[0]?.name || "")}`.toLowerCase()
         const isListened = listenedTracks.has(trackKey)
         return !isListened
     })
@@ -117,7 +117,7 @@ function normalizeTracks(
         return trackData as trackRecentData[]
     }
 
-    if (typeof trackData === 'object' && trackData !== null) {
+    if (typeof trackData === "object" && trackData !== null) {
         return [trackData]
     }
 
@@ -153,7 +153,7 @@ async function fetchWithRetry<T>(
             )
         }
     }
-    throw new Error('Max retries exceeded')
+    throw new Error("Max retries exceeded")
 }
 
 export async function returnHistoryLastFm(
@@ -162,27 +162,27 @@ export async function returnHistoryLastFm(
     signal: AbortSignal,
     userLastFm: string,
 ): Promise<trackRecentData[]> {
-    console.log('INITIAL DATE AND FINAL ', initialDateFusion, finalDateFusion)
+    console.log("INITIAL DATE AND FINAL ", initialDateFusion, finalDateFusion)
     const initialDate = dayjs(initialDateFusion).unix()
     const finalDate = dayjs().unix()
     let allTracks: trackRecentData[] = []
     let page = 1
     let totalPages = 1
 
-    console.log('🔍 Datas do Last.fm:')
+    console.log("🔍 Datas do Last.fm:")
     console.log(
-        '  from timestamp:',
+        "  from timestamp:",
         initialDate,
-        '=',
+        "=",
         dayjs(initialDateFusion).format(),
     )
     console.log(
-        '  to timestamp:',
+        "  to timestamp:",
         finalDate,
-        '=',
+        "=",
         dayjs(finalDateFusion).format(),
     )
-    console.log('  Data atual:', dayjs().format())
+    console.log("  Data atual:", dayjs().format())
 
     while (page <= totalPages) {
         if (signal?.aborted) throw new JobCanceledError()
@@ -190,16 +190,16 @@ export async function returnHistoryLastFm(
         const response = await fetchWithRetry(
             async () => {
                 const result = await safeAxiosGet<RecentTracks>(
-                    'https://ws.audioscrobbler.com/2.0/',
+                    "https://ws.audioscrobbler.com/2.0/",
                     {
-                        method: 'user.getrecenttracks',
-                        limit: '200',
+                        method: "user.getrecenttracks",
+                        limit: "200",
                         user: userLastFm,
                         from: String(initialDate),
                         to: String(finalDate),
                         api_key: process.env.LAST_FM_API_KEY!,
                         page: page.toString(),
-                        format: 'json',
+                        format: "json",
                     },
                     { signal },
                 )
@@ -217,11 +217,11 @@ export async function returnHistoryLastFm(
         if (signal?.aborted) throw new JobCanceledError()
 
         const currentPageSize = response.recenttracks.track.length
-        totalPages = parseInt(response.recenttracks['@attr']?.totalPages || '1')
+        totalPages = parseInt(response.recenttracks["@attr"]?.totalPages || "1")
         const currentPage = parseInt(
-            response.recenttracks['@attr']?.page || '1',
+            response.recenttracks["@attr"]?.page || "1",
         )
-        const total = response.recenttracks['@attr']?.total || '0'
+        const total = response.recenttracks["@attr"]?.total || "0"
 
         console.log(
             `Página ${currentPage}/${totalPages} - ${allTracks.length} tracks - Total de itens: ${total}`,
@@ -268,7 +268,7 @@ export const fetchTracksNotInCacheLovedTracks = async (
         if (signal?.aborted) throw new JobCanceledError()
 
         if (!lovedTracks || lovedTracks.length === 0) {
-            console.warn('Nenhuma loved track encontrada, não salvando cache')
+            console.warn("Nenhuma loved track encontrada, não salvando cache")
             return
         }
 
@@ -277,7 +277,7 @@ export const fetchTracksNotInCacheLovedTracks = async (
             SpotifyMapperSavedTracks.toTopTrackData(track)
         )
 
-        const size = Buffer.byteLength(JSON.stringify(lovedTracksMapped), 'utf8')
+        const size = Buffer.byteLength(JSON.stringify(lovedTracksMapped), "utf8")
         const compressedLovedTracks = await compressMusics(lovedTracksMapped)
 
         console.log(
@@ -288,17 +288,17 @@ export const fetchTracksNotInCacheLovedTracks = async (
         await redis.set(
             `fusion:users:${spotifyId}:${TimeRange.loved_tracks}`,
             compressedLovedTracks,
-            'EX',
+            "EX",
             60 * 60 * 24,
         )
 
     } catch (err: any) {
         if (err instanceof JobCanceledError) {
-            console.log('Job canceled by ', job.id)
+            console.log("Job canceled by ", job.id)
             throw err
         }
 
-        console.log('error: ', err)
+        console.log("error: ", err)
         throw err
     } finally {
         abortControllers.delete(job.id!)
@@ -318,8 +318,8 @@ export const fetchSingleRangeNotInCache = async (
 
         if (signal?.aborted) throw new JobCanceledError()
 
-        type TimeRangeKey = 'short' | 'medium' | 'long'
-        const timeRangeKey = compare.firstCompare.replace('_term', '') as TimeRangeKey
+        type TimeRangeKey = "short" | "medium" | "long"
+        const timeRangeKey = compare.firstCompare.replace("_term", "") as TimeRangeKey
 
         const topMusics = await spotifyService.fetchTopTracks(
             access_token,
@@ -339,7 +339,7 @@ export const fetchSingleRangeNotInCache = async (
             SpotifyMapper.toTopTrackData(track)
         )
 
-        const size = Buffer.byteLength(JSON.stringify(topMusicsMapped), 'utf8')
+        const size = Buffer.byteLength(JSON.stringify(topMusicsMapped), "utf8")
         const compressedData = await compressMusics(topMusicsMapped)
 
         console.log(
@@ -350,17 +350,17 @@ export const fetchSingleRangeNotInCache = async (
         await redis.set(
             `fusion:users:${spotifyId}:${compare.firstCompare}`,
             compressedData,
-            'EX',
+            "EX",
             60 * 60 * 24
         )
 
     } catch (err: any) {
         if (err instanceof JobCanceledError) {
-            console.log('Job canceled by ', job.id)
+            console.log("Job canceled by ", job.id)
             throw err
         }
 
-        console.log('error: ', err)
+        console.log("error: ", err)
         throw err
     } finally {
         abortControllers.delete(job.id!)
@@ -368,20 +368,20 @@ export const fetchSingleRangeNotInCache = async (
 }
 
 export const fetchLastFmNotInCache = async (
-    compare: {firstCompare: TimeRange, secondCompare: TimeRange.loved_tracks},
+    compare: { firstCompare: TimeRange, secondCompare: TimeRange.loved_tracks },
     signal: AbortSignal,
     lastFmUser: string,
     job: Job,
     abortControllers: Map<string, AbortController>
 ) => {
     try {
-        let initialDate: string = ''
-        let finalDate: string = ''
+        let initialDate: string = ""
+        let finalDate: string = ""
 
-        ;[initialDate, finalDate] = dateBasedOnRange(compare) as [
-            string,
-            string,
-        ]
+            ;[initialDate, finalDate] = dateBasedOnRange(compare) as [
+                string,
+                string,
+            ]
 
         if (signal?.aborted) throw new JobCanceledError()
         const lastFmResult = await returnHistoryLastFm(
@@ -392,13 +392,13 @@ export const fetchLastFmNotInCache = async (
         )
         if (signal?.aborted) throw new JobCanceledError()
         if (lastFmResult.length === 0) {
-            console.warn('last fm returned no values')
-            throw new Error('Last FM returned no values')
+            console.warn("last fm returned no values")
+            throw new Error("Last FM returned no values")
         }
 
         const LastResultSize = Buffer.byteLength(
             JSON.stringify(lastFmResult),
-            'utf8',
+            "utf8",
         )
         console.log(
             `📊 LastFM (antes da compressão): ${(LastResultSize / 1024).toFixed(2)} KB / ${(LastResultSize / (1024 * 1024)).toFixed(2)} MB`,
@@ -418,16 +418,16 @@ export const fetchLastFmNotInCache = async (
         await redis.set(
             `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
             lastFmFormattedCompressed,
-            'EX',
+            "EX",
             60 * 60 * 24,
         )
     } catch (err: any) {
         if (err instanceof JobCanceledError) {
-            console.log('Job canceled by ', job.id)
+            console.log("Job canceled by ", job.id)
             throw err
         }
 
-        console.log('error: ', err)
+        console.log("error: ", err)
         throw err
     } finally {
         abortControllers.delete(job.id!)

@@ -1,10 +1,10 @@
-import { Response, Request } from 'express'
-import { FusionBody } from '../models/fusion.model'
-import { rediscoverFusionQueue } from '../queues/rediscoverFusion.queue'
-import { DeleteRoute, ObjectId } from '../models/last-fm.model'
-import { redis } from '../infra/redis'
-import jwt from 'jsonwebtoken'
-import { SpotifyJWTPayload } from '../models/spotify.auth.model'
+import { Response, Request } from "express"
+import { FusionBody } from "../models/fusion.model"
+import { rediscoverFusionQueue } from "../queues/rediscoverFusion.queue"
+import { DeleteRoute, ObjectId } from "../models/last-fm.model"
+import { redis } from "../infra/redis"
+import jwt from "jsonwebtoken"
+import { SpotifyJWTPayload } from "../models/spotify.auth.model"
 
 export class FusionController {
     static async rediscoverFusion(req: Request, res: Response) {
@@ -15,7 +15,7 @@ export class FusionController {
             const spotifyCookies = req.cookies.spotify_token
 
             if (!spotifyCookies) {
-                throw new Error('Not spotify cookies found')
+                throw new Error("Not spotify cookies found")
             }
 
             const decoded = jwt.decode(spotifyCookies) as SpotifyJWTPayload
@@ -31,7 +31,7 @@ export class FusionController {
             } as FusionBody
 
             const job = await rediscoverFusionQueue.add(
-                'rediscover-fusion',
+                "rediscover-fusion",
                 {
                     params,
                 },
@@ -45,16 +45,16 @@ export class FusionController {
 
             res.status(202).json({
                 jobId: job.id,
-                status: 'processing',
+                status: "processing",
             })
         } catch (err: any) {
-            if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
-                console.log(' Requisição cancelada')
+            if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+                console.log(" Requisição cancelada")
                 return
             }
 
             console.error(err)
-            res.status(500).json({ error: 'Internal server error' })
+            res.status(500).json({ error: "Internal server error" })
         }
     }
 
@@ -64,7 +64,7 @@ export class FusionController {
 
         const job = await rediscoverFusionQueue.getJob(jobId)
         if (!job) {
-            res.status(404).json({ error: 'Job not found' })
+            res.status(404).json({ error: "Job not found" })
             return
         }
 
@@ -80,21 +80,21 @@ export class FusionController {
         const { jobId } = req.params
 
         if (!jobId) {
-            res.status(404).json({ error: 'Job ID is required' })
+            res.status(404).json({ error: "Job ID is required" })
             return
         }
 
         const job = await rediscoverFusionQueue.getJob(jobId as string)
 
         if (!job) {
-            res.status(404).json({ error: 'Job not found.' })
+            res.status(404).json({ error: "Job not found." })
             return
         }
 
         await redis.set(
             `rediscover:cancel:fusion:${jobId}`,
-            '1',
-            'EX',
+            "1",
+            "EX",
             60 * 60 * 24,
         )
         // salvando cancel para a fila progredir para o proximo. deletar o job {jobId}
@@ -108,12 +108,12 @@ export class FusionController {
         const { jobId, spotifyId, lastFmUser } = req.params as DeleteRoute
 
         const job = await rediscoverFusionQueue.getJob(jobId as string)
-        console.log('VOU LOGAAR JOB  ', job?.data)
+        console.log("VOU LOGAAR JOB  ", job?.data)
         if (job) {
-            await redis.set(`rediscover:delete:fusion:${jobId}`, '1', 'EX', 300)
+            await redis.set(`rediscover:delete:fusion:${jobId}`, "1", "EX", 300)
             const state = await job.getState()
 
-            if (state !== 'active') {
+            if (state !== "active") {
                 await job.remove()
             }
 
@@ -142,7 +142,7 @@ export class FusionController {
     }
     static async getJobs(req: Request, res: Response) {
         const jobs = await rediscoverFusionQueue.getJobs(
-            ['wait', 'completed', 'active'],
+            ["wait", "completed", "active"],
             0,
             -1,
         )

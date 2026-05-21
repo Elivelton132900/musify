@@ -1,12 +1,12 @@
-import { Request, Response } from 'express'
+import { Request, Response } from "express"
 import {
     exchangeCodeForToken,
     getLoginUrl,
     getSpotifyUserProfile,
-} from '../utils/spotifyUtils.js'
-import jwt from 'jsonwebtoken'
-import { SpotifyUserPayload } from '../models/spotify.auth.model.js'
-import { generateCsrfToken } from '../middlewares/csrf-protection.middleware.js'
+} from "../utils/spotifyUtils.js"
+import jwt from "jsonwebtoken"
+import { SpotifyUserPayload } from "../models/spotify.auth.model.js"
+import { generateCsrfToken } from "../middlewares/csrf-protection.middleware.js"
 
 export class AuthSpotifyController {
     static async login(req: Request, res: Response) {
@@ -18,7 +18,7 @@ export class AuthSpotifyController {
         const code = req.query.code as string
 
         if (!code) {
-            res.status(400).json({ error: 'Code not provided' })
+            res.status(400).json({ error: "Code not provided" })
             return
         }
 
@@ -38,31 +38,31 @@ export class AuthSpotifyController {
         } as SpotifyUserPayload
 
         const token = jwt.sign(payload, process.env.JWT_SECRET!, {
-            expiresIn: '1h',
+            expiresIn: "1h",
         })
 
-        res.cookie('spotify_token', token, {
+        res.cookie("spotify_token", token, {
             httpOnly: true,
             // se der erro, mudar para false em dev e em prod mudar para true
             secure: true,
-            sameSite: 'strict',
+            sameSite: "strict",
             maxAge: 3600000,
-            path: '/',
+            path: "/",
         })
 
 
         // Após login bem-sucedido, antes de enviar a resposta:
         const csrfToken = generateCsrfToken()
-        res.cookie('csrf_token', csrfToken, {
+        res.cookie("csrf_token", csrfToken, {
             httpOnly: false, // necessário para o frontend ler
             secure: true,
-            sameSite: 'strict',
+            sameSite: "strict",
             maxAge: 3600000,
-            path: '/',
+            path: "/",
         })
 
         res.json({
-            message: 'Login Successful',
+            message: "Login Successful",
             csrf_token: csrfToken, // frontend guarda para enviar nas requisições
             user: {
                 id: user.spotifyId,

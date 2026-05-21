@@ -3,13 +3,13 @@ import crypto from "crypto";
 
 // Gera um token CSRF (use no login)
 export const generateCsrfToken = (): string => {
-    return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString("hex");
 };
 
 // Middleware de proteção CSRF
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     const dangerousMethods = ["POST", "PUT", "PATCH", "DELETE"];
-    
+
     if (!dangerousMethods.includes(req.method)) {
         return next();
     }

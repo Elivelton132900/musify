@@ -1,13 +1,13 @@
-import dotenv from 'dotenv'
-import { beforeAll, describe, expect, it } from 'vitest'
+import dotenv from "dotenv"
+import { beforeAll, describe, expect, it } from "vitest"
 
-describe('Environment Variables', () => {
+describe("Environment Variables", () => {
     // carrega .env antes dos testes
     beforeAll(() => {
         dotenv.config()
     })
 
-    it('should load Spotify credentials', () => {
+    it("should load Spotify credentials", () => {
         expect(process.env.SPOTIFY_CLIENT_ID).toBeDefined()
         expect(process.env.SPOTIFY_CLIENT_SECRET).toBeDefined()
         expect(process.env.SPOTIFY_REDIRECT_URI_LOGIN).toBeDefined()
@@ -17,12 +17,12 @@ describe('Environment Variables', () => {
         expect(process.env.SPOTIFY_CLIENT_SECRET?.length).toBeGreaterThan(0)
     })
 
-    it('should load Last.fm credentials', () => {
+    it("should load Last.fm credentials", () => {
         expect(process.env.LAST_FM_API_KEY).toBeDefined()
         expect(process.env.LAST_FM_API_KEY?.length).toBeGreaterThan(0)
     })
 
-    it('should load JWT secret', () => {
+    it("should load JWT secret", () => {
         expect(process.env.JWT_SECRET).toBeDefined()
         expect(process.env.JWT_SECRET?.length).toBeGreaterThan(0)
     })

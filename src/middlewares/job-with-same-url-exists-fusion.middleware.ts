@@ -1,10 +1,10 @@
-import { Request, Response } from 'express'
-import { FusionBody } from '../models/fusion.model'
-import { rediscoverFusionQueue } from '../queues/rediscoverFusion.queue'
-import { NextFunction } from 'express-serve-static-core'
-import { SpotifyJWTPayload } from '../models/spotify.auth.model'
+import { Request, Response } from "express"
+import { FusionBody } from "../models/fusion.model"
+import { rediscoverFusionQueue } from "../queues/rediscoverFusion.queue"
+import { NextFunction } from "express-serve-static-core"
+import { SpotifyJWTPayload } from "../models/spotify.auth.model"
 import jwt from "jsonwebtoken"
-type FusionBodyWithoutToken = Omit<FusionBody, 'access_token'>
+type FusionBodyWithoutToken = Omit<FusionBody, "access_token">
 
 export const jobWithSameUrlExists = async (
     req: Request,
@@ -25,10 +25,10 @@ export const jobWithSameUrlExists = async (
         const { spotifyId } = decoded
 
         const newRequest = { spotifyId, lastFmUser, compare }
-        console.log('new', newRequest)
+        console.log("new", newRequest)
 
         const jobsInQueue = await rediscoverFusionQueue.getJobs(
-            ['active', 'completed', 'waiting'],
+            ["active", "completed", "waiting"],
             0,
             -1,
         )
@@ -51,7 +51,7 @@ export const jobWithSameUrlExists = async (
 
             if (isEqual) {
                 return res.status(409).json({
-                    error: 'Already exists a job with the same parameters',
+                    error: "Already exists a job with the same parameters",
                 })
             }
         }
@@ -61,6 +61,6 @@ export const jobWithSameUrlExists = async (
             return next(e)
         }
 
-        return next(new Error('unknown error'))
+        return next(new Error("unknown error"))
     }
 }
