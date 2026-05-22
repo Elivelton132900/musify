@@ -31,8 +31,14 @@ Utiliza **BullMQ** e **Redis** para processamento assíncrono de tarefas longas,
   - Proteção CSRF em endpoints modificadores
   - Validação de entrada com `celebrate`/Joi
   - Restrição baseada no usuário para cancelamento/exclusão de jobs
-  - Test com Vitest, Jest e Supertest
 
+## ✅ Testes
+- Jest
+- Vitest
+- Supertest
+- Testes unitários
+- Testes de integração de APIs
+  
 ## 🧱 Tecnologias
 
 - **Runtime**: Node.js (ES2022)
