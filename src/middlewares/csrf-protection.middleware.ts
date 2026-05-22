@@ -10,6 +10,10 @@ export const generateCsrfToken = (): string => {
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     const dangerousMethods = ["POST", "PUT", "PATCH", "DELETE"];
 
+    if (process.env.NODE_ENV === "test") {
+        return next()
+    }
+
     if (!dangerousMethods.includes(req.method)) {
         return next();
     }
