@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { Server } from 'http'
 import request from "supertest"
+import { NextFunction, Request } from "express"
 const ranges = ["long_short", "long_medium", "medium_short", "long_loved", "short_loved", "medium_loved"] as const
 const memoryStore = new Map<string, string>()
 
@@ -61,9 +62,8 @@ vi.mock("bullmq", () => {
                     timestamp: Date.now(),
                     attempts: 0,
                     delay: 0,
-                    getState: vi.fn().mockResolvedValue("waiting"),
+                    getState: vi.fn().mockResolvedValue("waitign"),
                     remove: vi.fn().mockImplementation(async () => {
-                        console.log(`🗑️ Removendo job ${jobId} do store`)
                         jobsStore.delete(jobId)
                         return undefined
                     }),
@@ -72,7 +72,7 @@ vi.mock("bullmq", () => {
                 jobsStore.set(jobId, job)
                 return job
             })
-            getJob = vi.fn().mockImplementation(async (jobId: string) => {
+            getJob = vi.fn().mockImplementation(async (jobId: string, start: number, end: number) => {
                 const job = jobsStore.get(jobId) || null
 
                 if (job) {
@@ -84,6 +84,11 @@ vi.mock("bullmq", () => {
                         })
                     }
                 }
+            })
+
+            getJobs = vi.fn().mockImplementation(async (type: string[], spotifyId) => {
+                const allJobs = Array.from(jobsStore.values())
+                return allJobs
             })
         },
         QueueEvents: class {
@@ -108,10 +113,20 @@ vi.mock("../src/queues/rediscoverSpotify.queue.ts", () => ({
     })
 }))
 
+interface AuthenticatedRequest extends Request {
+    spotifyUser?: SpotifyUser
+}
 
+interface SpotifyUser {
+    access_token: string,
+    spotifyId: string,
+    refresh_token: string,
+    expires_in: number
+    token_type: string
+}
 // ✅ Mock da autenticação - ESSENCIAL
 vi.mock("../middlewares/is-authenticated.spotify.middleware.ts", () => ({
-    isAuthenticatedSpotify: (req: any, _res: any, next: any) => {
+    isAuthenticatedSpotify: (req: AuthenticatedRequest, next: NextFunction, user: string, _res: Response) => {
 
         console.log("🔵 MOCK isAuthenticatedSpotify FOI CHAMADO!")
         console.log("🔵 URL:", req.url)
@@ -119,7 +134,7 @@ vi.mock("../middlewares/is-authenticated.spotify.middleware.ts", () => ({
 
         req.spotifyUser = {
             access_token: "fake-access-token-123",
-            spotifyId: "fake-spotify-user-id",
+            spotifyId: "fake-spotify-user-id-alternative-2",
             refresh_token: "fake-refresh-token",
             expires_in: 3600,
             token_type: "Bearer"
@@ -130,11 +145,12 @@ vi.mock("../middlewares/is-authenticated.spotify.middleware.ts", () => ({
 
 // ✅ Mock dos outros middlewares
 vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware.ts", () => ({
-    jobWithSameUrlExists: (_req: any, _res: any, next: any) => next()
+    jobWithSameUrlExists: (_req: Request, _res: Response, next: NextFunction) => next()
 }))
 
 vi.mock("../middlewares/csrf-protection.middleware.ts", () => ({
-    csrfProtection: (_req: any, _res: any, next: any) => next()
+    csrfProtection: (_req: Request, _res: Response, next: NextFunction) => next(),
+    generateCsrfToken: () => "mock-csrf-token-123"
 }))
 
 // ✅ Mock do auth.utils
@@ -154,8 +170,14 @@ vi.mock("express-async-handler", () => ({
     default: <T>(fn: T) => fn
 }))
 
+vi.mock("QueueGetters", () => ({
+
+}))
+
 import app from "../app"
 import { Queue } from "bullmq"
+import { generateCsrfToken } from "../middlewares/csrf-protection.middleware"
+import { rediscoverSpotifyQueue } from "../queues/rediscoverSpotify.queue"
 
 describe("CRUD - Spotify | Teste integrado", () => {
     let server: Server
@@ -298,7 +320,7 @@ describe("CRUD - Spotify | Teste integrado", () => {
                 .set("x-csrf-token", csrfToken)
                 .set("Cookie", [`csrf_token=${csrfToken}`])
 
-                
+
             expect(firstDelete.status).toBe(200)
             console.log("MESSAGE ", firstDelete.body)
             expect(firstDelete.body).toMatchObject({
@@ -311,10 +333,49 @@ describe("CRUD - Spotify | Teste integrado", () => {
                 .set("x-csrf-token", csrfToken)
                 .set("Cookie", [`csrf_token=${csrfToken}`])
 
-            expect(secondDelete.status).toBe(404) 
+            expect(secondDelete.status).toBe(404)
             expect(secondDelete.body).toMatchObject({
                 error: expect.stringContaining("was not founded")
             })
+        })
+    })
+
+    describe("GET jobs from an only particular user", () => {
+
+        let validCsrfToken: string;
+
+        beforeAll(() => {
+            validCsrfToken = generateCsrfToken();
+        });
+
+
+
+        it("Should return jobs from a particular logged user in route /spotify/loved-tracks/jobs", async () => {
+
+
+            const targetSpotifyId = "fake-spotify-user-id";
+
+
+            const response = await request(server)
+                .get("/spotify/loved-tracks/jobs")
+                .set("x-csrf-token", validCsrfToken)
+                // ✅ Cookies
+                .set("Cookie", [
+                    `csrf_token=${validCsrfToken}`])
+                
+            expect(response.status).toBe(200)
+            expect(response.body).toHaveProperty("jobs")
+            expect(response.body).toHaveProperty("timeStamp")
+
+            const allJobs = await rediscoverSpotifyQueue.getJobs([])
+            const jobsFiltered = allJobs.filter((job) => job.data.params.spotifyId === targetSpotifyId)
+
+            jobsFiltered.forEach((jobs) => {
+                expect(jobs.data.params.spotifyId).not.toHaveLength(0)
+            })
+
+            console.log(`${jobsFiltered.length} resultados encontrados para o user ${targetSpotifyId}`)
+
         })
     })
 })

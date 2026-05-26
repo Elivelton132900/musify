@@ -25,7 +25,7 @@ spotifyRoutes.post(
 spotifyRoutes.post(
     "/spotify/loved-tracks/jobs/:jobId/cancel",
     csrfProtection,
-    isAuthenticatedSpotify,  // ✅ ADICIONAR ESTA LINHA
+    isAuthenticatedSpotify,
     jobWithSameUrlExists,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
@@ -35,7 +35,7 @@ spotifyRoutes.post(
 
 spotifyRoutes.get(
     "/spotify/loved-tracks/jobs/:jobId",
-    csrfProtection,              // ✅ MOVER CSRF PARA PRIMEIRO (boa prática)
+    csrfProtection,     
     isAuthenticatedSpotify,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
@@ -48,7 +48,7 @@ spotifyRoutes.get("/spotify/loved-tracks/jobs", expressAsyncHandler(SpotifyContr
 spotifyRoutes.delete(
     "/spotify/loved-tracks/jobs/:jobId",
     csrfProtection,
-    isAuthenticatedSpotify,  // ✅ ADICIONAR ESTA LINHA
+    isAuthenticatedSpotify,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
     }),
