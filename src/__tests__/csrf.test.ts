@@ -1,11 +1,50 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import app from "../app";
 import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
+import { AuthenticatedRequest } from "../middlewares/is-authenticated.spotify.middleware";
+import { Response, Request, NextFunction } from "express";
+
+vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
+    isAuthenticatedSpotify: (
+        req: AuthenticatedRequest,
+        res: Response,
+        next: NextFunction
+    ) => {
+        // Adiciona os dados do usuário Spotify que a aplicação espera
+        req.spotifyUser = {
+            spotifyId: "test-spotify-id-123",
+            userId: "test-user-id-456",
+            email: "test@example.com",
+            name: "Test User",
+            display_name: "Test User",
+            access_token: "fake-access-token",
+            refresh_token: "fake-refresh-token",
+            expires_at: Date.now() + 3600000, // expira em 1 hora
+            iat: Date.now(),
+            exp: Date.now() + 3600000
+        };
+        next();
+    }
+}));
+
+vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware", () => ({
+    jobWithSameUrlExists: (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        // Simula que não existe job duplicado
+        // Isso permite que a requisição prossiga
+        next();
+    }
+}));
+
 
 type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch'
 
 describe("CSRF Protection - Spotify Routes", () => {
+
 
     const csrfProtectedRoutes = [
         {
@@ -78,9 +117,9 @@ describe("CSRF Protection - Spotify Routes", () => {
             it("Should return 403 when DELETE request has no CSRF token", async () => {
                 if (method === "delete") {
                     const response = await request(app)
-                        [method](url)
+                    [method](url)
                         .send(body)
-                    
+
                     expect(response.status).toBe(403)
                 }
 

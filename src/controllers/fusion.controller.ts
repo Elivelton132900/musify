@@ -6,6 +6,16 @@ import { redis } from "../infra/redis"
 import jwt from "jsonwebtoken"
 import { SpotifyJWTPayload } from "../models/spotify.auth.model"
 
+interface FusionJobData {
+    params: {
+        access_token: string;
+        spotifyId: string;
+        compare: any;
+        lastFmUser: string;
+    }
+}
+
+
 export class FusionController {
     static async rediscoverFusion(req: Request, res: Response) {
         try {
@@ -107,16 +117,38 @@ export class FusionController {
     static async deleteRediscover(req: Request, res: Response) {
         const { jobId, spotifyId, lastFmUser } = req.params as DeleteRoute
 
-        const job = await rediscoverFusionQueue.getJob(jobId as string)
-        console.log("VOU LOGAAR JOB  ", job?.data)
-        if (job) {
+        try {
+            const job = await rediscoverFusionQueue.getJob(jobId as string)
+
+            // ✅ VERIFICAÇÃO COMPLETA
+            if (!job) {
+                res.status(404).json({
+                    error: `Job ${jobId} not found`,
+                })
+                return
+            }
+
+            // ✅ VERIFICA A ESTRUTURA DOS DADOS
+            const jobData = job.data as FusionJobData | undefined
+
+            if (!jobData?.params) {
+                res.status(400).json({
+                    error: "Invalid job data structure",
+                    message: "Job params are missing"
+                })
+                return
+            }
+
+            // Marca como deletado
             await redis.set(`rediscover:delete:fusion:${jobId}`, "1", "EX", 300)
+
             const state = await job.getState()
 
             if (state !== "active") {
                 await job.remove()
             }
 
+            // Limpa caches
             const keysSpotify = await redis.keys(`fusion:users:${spotifyId}:*`)
             const keysLastFM = await redis.keys(`fusion:users:${lastFmUser}:*`)
 
@@ -131,15 +163,15 @@ export class FusionController {
             res.status(200).json({
                 status: `Job ${jobId} deleted and marked as cancelled`,
             })
-            return
-        }
 
-        if (!job) {
-            res.status(404).json({
-                error: `Job ${jobId} not deleted because was not founded.`,
+        } catch (error) {
+            console.error("Error deleting job:", error)
+            res.status(500).json({
+                error: "Internal server error"
             })
         }
     }
+
     static async getJobs(req: Request, res: Response) {
         const jobs = await rediscoverFusionQueue.getJobs(
             ["wait", "completed", "active"],

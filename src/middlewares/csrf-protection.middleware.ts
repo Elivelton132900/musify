@@ -10,9 +10,14 @@ export const generateCsrfToken = (): string => {
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     const dangerousMethods = ["POST", "PUT", "PATCH", "DELETE"];
 
-    if (process.env.NODE_ENV === "test") {
-        return next()
-    }
+    console.log('=== CSRF Middleware ===');
+    console.log('Method:', req.method);
+    console.log('x-csrf-token header:', req.headers['x-csrf-token']);
+    console.log('Cookies:', req.cookies)
+
+    // if (process.env.NODE_ENV !== "test") {
+    //     return next()
+    // }
 
     if (!dangerousMethods.includes(req.method)) {
         return next();

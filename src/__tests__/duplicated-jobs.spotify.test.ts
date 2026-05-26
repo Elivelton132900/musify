@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { Response, Request, NextFunction } from "express";
 import request from "supertest";
 
@@ -49,8 +49,16 @@ vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
 }))
 
 import app from "../app";
+import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
 
 describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
+
+    let validCsrfToken: string
+
+    beforeAll(() => {
+        validCsrfToken = generateCsrfToken();
+    });
+
     callCount = 0
 
     it("Should return 409 when submitting the same job twice or more", async () => {
@@ -62,6 +70,13 @@ describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
         const firstResponse = await request(app)
             .post("/spotify/loved-tracks/comparison-jobs")
             .set("Cookie", "spotify_token=fake-token")
+            .set("x-csrf-token", validCsrfToken)
+            // ✅ Cookies
+            .set("Cookie", [
+                `csrf_token=${validCsrfToken}`,
+                "spotify_token=fake-token-123",
+                "spotify_refresh_token=fake-refresh-token"
+            ])
             .send(payload)
 
         console.log(firstResponse.error)
@@ -70,6 +85,11 @@ describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
         const secondResponse = await request(app)
             .post("/spotify/loved-tracks/comparison-jobs")
             .set("Cookie", "spotify_token=fake-token")
+            .set("Cookie", "spotify_token=fake-token")
+            .set("x-csrf-token", validCsrfToken)
+            // ✅ Cookies
+            .set("Cookie", [
+                `csrf_token=${validCsrfToken}`])
             .send(payload)
 
         expect(firstResponse.status).toBe(202)

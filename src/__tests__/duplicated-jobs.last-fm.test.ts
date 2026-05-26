@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { NextFunction, Request, Response } from "express";
 import request from "supertest";
 
@@ -56,9 +56,16 @@ vi.mock("../middlewares/job-with-same-url-exists-last-fm.middleware", () => ({
 
 
 import app from "../app";
+import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
 
 
 describe("POST /lastfm/loved-tracks/jobs - duplicate jobs ", () => {
+
+    let validCsrfToken: string
+
+    beforeAll(() => {
+        validCsrfToken = generateCsrfToken();
+    });
 
     it("Should return 409 when submitting the same job twice or more", async () => {
         callCount = 0
@@ -74,6 +81,10 @@ describe("POST /lastfm/loved-tracks/jobs - duplicate jobs ", () => {
 
         const firstResponse = await request(app)
             .post("/lastfm/loved-tracks/jobs")
+            .set("x-csrf-token", validCsrfToken)
+            // ✅ Cookies
+            .set("Cookie", [
+                `csrf_token=${validCsrfToken}`])
             .send(payload)
 
         console.log("Primeira: ", firstResponse.status)
@@ -81,6 +92,10 @@ describe("POST /lastfm/loved-tracks/jobs - duplicate jobs ", () => {
         console.log("first ", firstResponse.text)
         const secondResponse = await request(app)
             .post("/lastfm/loved-tracks/jobs")
+            .set("x-csrf-token", validCsrfToken)
+            // ✅ Cookies
+            .set("Cookie", [
+                `csrf_token=${validCsrfToken}`])
             .send(payload)
 
         console.log("Segunda: ", secondResponse.status)

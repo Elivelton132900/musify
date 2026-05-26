@@ -1,7 +1,7 @@
 import { jobIdRediscoverLovedTracks } from "./../models/last-fm.model"
 import { Router } from "express"
 import expressAsyncHandler from "express-async-handler"
-import { SpotifyController } from "../controllers/spotify.controller"
+import { SpotifyController } from "../middlewares/spotify.controller"
 import { isAuthenticatedSpotify } from "../middlewares/is-authenticated.spotify.middleware"
 import { jobWithSameUrlExists } from "../middlewares/job-with-same-url-exists-spotify.middleware"
 import { celebrate, Segments } from "celebrate"
@@ -25,6 +25,7 @@ spotifyRoutes.post(
 spotifyRoutes.post(
     "/spotify/loved-tracks/jobs/:jobId/cancel",
     csrfProtection,
+    isAuthenticatedSpotify,  // ✅ ADICIONAR ESTA LINHA
     jobWithSameUrlExists,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
@@ -34,6 +35,8 @@ spotifyRoutes.post(
 
 spotifyRoutes.get(
     "/spotify/loved-tracks/jobs/:jobId",
+    csrfProtection,              // ✅ MOVER CSRF PARA PRIMEIRO (boa prática)
+    isAuthenticatedSpotify,
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
     }),
@@ -45,6 +48,7 @@ spotifyRoutes.get("/spotify/loved-tracks/jobs", expressAsyncHandler(SpotifyContr
 spotifyRoutes.delete(
     "/spotify/loved-tracks/jobs/:jobId",
     csrfProtection,
+    isAuthenticatedSpotify,  // ✅ ADICIONAR ESTA LINHA
     celebrate({
         [Segments.PARAMS]: jobIdRediscoverLovedTracks,
     }),

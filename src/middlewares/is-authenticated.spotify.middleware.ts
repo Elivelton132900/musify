@@ -5,7 +5,7 @@ import { SpotifyJWTPayload } from "../models/spotify.auth.model"
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
     spotifyUser?: SpotifyJWTPayload
 }
 
