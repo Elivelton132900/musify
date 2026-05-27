@@ -20,6 +20,7 @@ import { Agent as HttpsAgent } from "https"
 import { Agent as HttpAgent } from "http"
 import { redis } from "../infra/redis"
 import { Job } from "bullmq"
+import { rediscoverSpotifyQueue } from "../queues/rediscoverSpotify.queue"
 
 dayjs.extend(utc)
 
@@ -613,7 +614,6 @@ export function buildRediscoverCacheKey(
 }
 
 export function buildCacheKey(user: string, hash: string) {
-    // editado
     return `lastfm:rediscover:result:${user}:${hash}`
 }
 
@@ -650,8 +650,33 @@ export async function throwIfCanceled(
     return false
 }
 
-// export function urlsProcessed(params: RediscoverLovedTracksQuery, user: string) {
+export async function addJobToQueue(
+    candidateFrom: string,
+    candidateTo: string,
+    comparisonFrom: string,
+    comparisonTo: string,
+    lastFmUser: string,
+    fetchInDays?: number,
+    distinct?: number,
+) {
+    const job = await rediscoverSpotifyQueue.add(
+        "rediscover-loved-tracks-spotify",
+        {
+            fetchInDays,
+            distinct,
+            candidateFrom,
+            candidateTo,
+            comparisonFrom,
+            comparisonTo,
+            lastFmUser
+        },
+        {
+            removeOnComplete: {
+                age: 60 * 60 * 24 * 10,
+            },
+            removeOnFail: false,
+        },
+    )
 
-//     redis.set(`urls:${user}`, JSON.stringify(params), "EX", )
-
-// }
+    return job
+}

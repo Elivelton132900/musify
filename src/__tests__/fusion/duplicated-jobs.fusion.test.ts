@@ -1,19 +1,10 @@
 import request from "supertest";
 import { beforeAll, describe, expect, it, vi, afterEach } from "vitest";
-import app from "../app";
-import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
+import app from "../../app";
+import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware";
 import jwt from "jsonwebtoken"
 
-// ❌ REMOVA ESTES MOCKS - Eles impedem os testes de funcionar
-// vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({ ... }))
-// vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware", () => ({ ... }))
-
 describe("Spotify - Token and CSRF Tests", () => {
-    let csrf_token: string
-
-    beforeAll(() => {
-        csrf_token = generateCsrfToken()
-    })
 
     afterEach(() => {
         vi.restoreAllMocks()

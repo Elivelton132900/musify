@@ -1,42 +1,8 @@
 import request from "supertest";
 import { beforeAll, describe, expect, it, vi, afterEach } from "vitest";
-import app from "../app";
-import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
+import app from "../../app";
+import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware";
 import jwt from "jsonwebtoken"
-// import { AuthenticatedRequest } from "../middlewares/is-authenticated.spotify.middleware";
-// import { NextFunction, Response } from "express";
-
-
-// vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
-//   isAuthenticatedSpotify: (
-//     req: AuthenticatedRequest,
-//     res: Response,
-//     next: NextFunction
-//   ) => {
-//     console.log("🔵 MOCK isAuthenticatedSpotify FOI CHAMADO!")
-//     req.spotifyUser = {
-//       spotifyId: "fake-spotify-user-id",
-//       userId: "test-user-id-456",
-//       email: "test@example.com",
-//       name: "Test User",
-//       access_token: "fake-access-token",
-//       refresh_token: "fake-refresh-token",
-//       expires_at: Date.now() + 3600000,
-//       iat: Date.now(),
-//       exp: Date.now() + 3600000
-//     };
-//     next();
-//   }
-// }));
-
-
-// vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware", () => ({
-//   jobWithSameUrlExists: (_req: Request, _res: Response, next: NextFunction) => {
-//     console.log("🔵 MOCK jobWithSameUrlExists FOI CHAMADO!")
-//     next()
-//   }
-// }));
-
 
 describe("Spotify - Token and CSRF Tests", () => {
   let csrf_token: string

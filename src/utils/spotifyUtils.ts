@@ -102,7 +102,7 @@ export function findTracksNotInSecondRange(
     const isFirstRangeSavedTracks =
         firstRange.filter((item) => typeof item.added_at === "string").length > 0
 
-    // Cenário: Você quer músicas que estão nas suas curtidas (loved_tracks)
+    // Cenário: músicas que estão nas suas curtidas (loved_tracks)
     // mas que você NÃO escuta mais (não estão no seu short_term)
 
     if (isFirstRangeSavedTracks) {

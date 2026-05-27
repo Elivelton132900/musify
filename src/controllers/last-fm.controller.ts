@@ -2,19 +2,22 @@ import { Request, Response } from "express"
 import { ObjectId, RediscoverLovedTracksBody } from "../models/last-fm.model"
 import { rediscoverLastFmQueue } from "../queues/rediscoverLastfm.queue"
 import { redis } from "../infra/redis"
+import { addJobToQueue as originalAddJobToQueue } from "../utils/lastFmUtils"
 import dayjs from "dayjs"
 
 export class LastFmController {
+
+    static addJobToQueue = originalAddJobToQueue
+
     static async rediscoverLovedTracks(req: Request, res: Response) {
         try {
             const query = req.body as unknown as RediscoverLovedTracksBody
-        const candidateStart = dayjs(req.body.candidateFrom).utc()
-        const candidateEnd = dayjs(req.body.candidateTo).utc()
+            const candidateStart = dayjs(req.body.candidateFrom).utc()
+            const candidateEnd = dayjs(req.body.candidateTo).utc()
 
 
-        const fetchInDays = candidateEnd.diff(candidateStart, "day")
+            const fetchInDays = candidateEnd.diff(candidateStart, "day")
             const {
-                distinct,
                 candidateFrom,
                 candidateTo,
                 comparisonFrom,
@@ -22,27 +25,17 @@ export class LastFmController {
                 lastFmUser,
             } = query
 
-            const params = {
-                fetchInDays,
-                distinct,
+
+
+            const job = await LastFmController.addJobToQueue(
                 candidateFrom,
                 candidateTo,
                 comparisonFrom,
                 comparisonTo,
                 lastFmUser,
-            } as RediscoverLovedTracksBody
-            const job = await rediscoverLastFmQueue.add(
-                "rediscover-loved-tracks-last-fm",
-                {
-                    params,
-                },
-                {
-                    removeOnComplete: {
-                        age: 60 * 60 * 24 * 10,
-                    },
-                    removeOnFail: false,
-                },
+                fetchInDays
             )
+
 
             res.status(202).json({
                 jobId: job.id,

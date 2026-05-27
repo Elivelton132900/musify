@@ -55,7 +55,7 @@ export const rediscoverSpotifyWorker = new Worker(
             console.log("Error: ", e)
             throw e
         } finally {
-            abortControllers.delete(job.id!) // ← ADICIONE ISSO
+            abortControllers.delete(job.id!)
         }
     },
     {

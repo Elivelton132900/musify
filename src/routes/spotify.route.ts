@@ -1,7 +1,7 @@
 import { jobIdRediscoverLovedTracks } from "./../models/last-fm.model"
 import { Router } from "express"
 import expressAsyncHandler from "express-async-handler"
-import { SpotifyController } from "../middlewares/spotify.controller"
+import { SpotifyController } from "../controllers/spotify.controller"
 import { isAuthenticatedSpotify } from "../middlewares/is-authenticated.spotify.middleware"
 import { jobWithSameUrlExists } from "../middlewares/job-with-same-url-exists-spotify.middleware"
 import { celebrate, Segments } from "celebrate"

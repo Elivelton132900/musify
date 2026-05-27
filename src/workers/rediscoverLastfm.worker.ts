@@ -18,14 +18,11 @@ export const rediscoverLastFmWorker = new Worker(
 
         const {
             params,
-            // apagar hash
         } = job.data as {
             params: RediscoverLovedTracksBody
             hash: string
             jobId: string
         }
-
-        // apagar const cacheKey = buildCacheKey(params.user, hash)
 
         const controller = new AbortController()
         abortControllers.set(job.id!, controller)

@@ -3,7 +3,7 @@ import { SpotifyCookies, SpotifyJWTPayload } from "../models/spotify.auth.model"
 import { Request, Response } from "express"
 import { PossibleRanges, TimeRange } from "../models/spotify.model"
 import { redis } from "../infra/redis"
-import { addJobToQueue } from "../utils/spotifyUtils"
+import { addJobToQueue as originalAddJobToQueue } from "../utils/spotifyUtils"
 
 export interface SpotifyRequest extends Request {
     cookies: SpotifyCookies
@@ -25,8 +25,11 @@ interface JobResultWithTracks {
 
 
 export class SpotifyController {
+    static addJobToQueue = originalAddJobToQueue
     static async syncAndCompareTimeRange(req: SpotifyRequest, res: Response) {
+
         try {
+
             const access_token = req.spotifyUser?.access_token || ""
             const spotifyId = req.spotifyUser?.spotifyId || ""
 
@@ -39,8 +42,13 @@ export class SpotifyController {
             const secondRange = TimeRange[rangesToCompare[1] as keyof typeof TimeRange]
 
             const compare = { firstCompare: firstRange, secondCompare: secondRange }
+            console.log("🔍 SpotifyController.addJobToQueue é:", SpotifyController.addJobToQueue);
+            console.log("🔍 typeof:", typeof SpotifyController.addJobToQueue);
+            const job = await SpotifyController.addJobToQueue(access_token, spotifyId, compare)
 
-            const job = await addJobToQueue(access_token, spotifyId, compare)
+            console.log("    JOBBBBBBBBBBBBBBBBBBBB   ", job)
+            console.log("🔍 Dentro do controller - req.spotifyUser:", req.spotifyUser);
+            console.log("🔍 req.user:", (req as any).user);
 
             res.status(202).json({
                 jobId: job.id,
@@ -56,33 +64,6 @@ export class SpotifyController {
             res.status(500).json({ error: "Internal server error" })
         }
     }
-
-    // static async getJob(req: Request, res: Response) {
-    //     const query = req.params as unknown as ObjectId
-
-    //     const { jobId } = query
-    //     const job = await rediscoverSpotifyQueue.getJob(jobId)
-
-    //     if (!job) {
-    //         res.status(404).json({ error: "Job not found" })
-    //         return
-    //     }
-
-    //     const state = await job.getState()
-
-    //     let resultLength = null
-    //     if (Array.isArray(job.returnvalue)) {
-    //         resultLength = job.returnvalue.length
-    //     } else if (job.returnvalue && typeof job.returnvalue === "object") {
-    //         resultLength = Object.keys(job.returnvalue).length
-    //     }
-
-    //     res.json({
-    //         state,
-    //         result: job.returnvalue ?? null,
-    //         length: resultLength,
-    //     })
-    // }
 
     static async getJob(req: SpotifyRequest, res: Response): Promise<void> {
         const { jobId } = req.params as { jobId: string }

@@ -2,11 +2,9 @@ import { Request, Response, NextFunction } from "express"
 import dayjs from "dayjs"
 import minMax from "dayjs/plugin/minMax"
 import axios from "axios"
-import { UserInformation } from "../models/last-fm.auth.model"
 import { redis } from "../infra/redis"
 
 dayjs.extend(minMax)
-
 async function userAccountCreation(user: string) {
     const userAccountCreationExists = await redis.get(
         `rediscover:${user}:accountCreation`,
@@ -20,12 +18,11 @@ async function userAccountCreation(user: string) {
             format: "json",
         }
         const endpoint = "https://ws.audioscrobbler.com/2.0/"
-        const userInfo = (await axios.get(endpoint, {
-            params,
-        })) as UserInformation
-
-        const unixtimeAccountCreation = userInfo.data.user.registered.unixtime
-
+const response = await axios.get(endpoint, {
+    params: params,
+})
+        const unixtimeAccountCreation = response.data.user.registered.unixtime
+        console.log("response.data ", response.data)
         await redis.set(
             `rediscover:${user}:accountCreation`,
             String(unixtimeAccountCreation),
@@ -33,7 +30,7 @@ async function userAccountCreation(user: string) {
             60 * 60 * 24 * 10,
         )
 
-        return userInfo.data.user.registered.unixtime
+        return response.data.user.registered.unixtime
     }
 
     return userAccountCreationExists

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import request from "supertest"
-import app from "../app"
-import { generateCsrfToken } from "../middlewares/csrf-protection.middleware"
+import app from "../../app"
+import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware"
 
 describe("Spotify Routes - Security Tests", () => {
   let csrfToken: string

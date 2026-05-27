@@ -2,7 +2,7 @@ import axios from 'axios'
 import { beforeEach } from 'node:test'
 import { describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
-import app from '../app'
+import app from '../../app'
 
 vi.mock("axios")
 

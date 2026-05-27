@@ -3,9 +3,11 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    globals: false, // não usar globals para evitar conflitos
+    globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
-    setupFiles: []
+    mockReset: true,
+    clearMocks: true,
+    restoreMocks: true
   },
 })

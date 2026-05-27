@@ -16,13 +16,13 @@ vi.mock("ioredis", () => {
     }
 })
 
-vi.mock("../src/middlewares/csrf-protection.middleware", () => ({
+vi.mock("../../src/middlewares/csrf-protection.middleware", () => ({
     csrfProtection: (_req: Request, _res: Response, next: NextFunction) => next()
 }))
 
 let callCount = 0
 
-vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware", () => ({
+vi.mock("../../middlewares/job-with-same-url-exists-spotify.middleware", () => ({
     jobWithSameUrlExists: (_req: Request, res: Response, next: NextFunction) => {
         callCount++
 
@@ -40,7 +40,7 @@ interface AuthenticatedRequest extends Request {
     spotifyToken?: string
 }
 
-vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
+vi.mock("../../middlewares/is-authenticated.spotify.middleware", () => ({
     isAuthenticatedSpotify: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
         req.userId = "fakeUserId"
         req.spotifyToken = "fake-spotify-token-123"
@@ -48,8 +48,8 @@ vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
     }
 }))
 
-import app from "../app";
-import { generateCsrfToken } from "../middlewares/csrf-protection.middleware";
+import app from "../../app";
+import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware";
 
 describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
 

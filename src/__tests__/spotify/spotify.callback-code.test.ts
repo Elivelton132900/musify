@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest"
-import app from "../app";
+import app from "../../app";
 describe("Spotify callback code", () => {
 
     describe("Code not provided", () => {
