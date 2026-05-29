@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 
-// Factory para criar instâncias mock do axios
 export function createMockAxiosInstance() {
     return {
         get: vi.fn().mockResolvedValue({
@@ -24,7 +23,6 @@ export function createMockAxiosInstance() {
     };
 }
 
-// ✅ Exporta diretamente o mock, sem vi.mock
 const mockInstance = createMockAxiosInstance();
 
 export default {

@@ -20,7 +20,7 @@ import { Agent as HttpsAgent } from "https"
 import { Agent as HttpAgent } from "http"
 import { redis } from "../infra/redis"
 import { Job } from "bullmq"
-import { rediscoverSpotifyQueue } from "../queues/rediscoverSpotify.queue"
+import { rediscoverLastFmQueue } from "../queues/rediscoverLastfm.queue"
 
 dayjs.extend(utc)
 
@@ -658,9 +658,11 @@ export async function addJobToQueue(
     lastFmUser: string,
     fetchInDays?: number,
     distinct?: number,
+    jobIdMocked?: string,
+    options?: { delay?: number }
 ) {
-    const job = await rediscoverSpotifyQueue.add(
-        "rediscover-loved-tracks-spotify",
+    const job = await rediscoverLastFmQueue.add(
+        "rediscover-loved-tracks-last-fm",
         {
             fetchInDays,
             distinct,
@@ -668,9 +670,11 @@ export async function addJobToQueue(
             candidateTo,
             comparisonFrom,
             comparisonTo,
-            lastFmUser
+            lastFmUser,
         },
         {
+            jobId: jobIdMocked,
+            delay: options?.delay,
             removeOnComplete: {
                 age: 60 * 60 * 24 * 10,
             },

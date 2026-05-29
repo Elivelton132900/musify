@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { NextFunction, Request, Response } from "express";
 import request from 'supertest';
 import bullmqMock from "../__mocks__/bullmq";
@@ -15,6 +15,12 @@ vi.mock("../../middlewares/job-with-same-url-exists-last-fm.middleware", () => (
   jobWithSameUrlExists: (_req: Request, _res: Response, next: NextFunction) => next()
 }));
 
+vi.mock("../../middlewares/user-exists-last-fm.middleware", async () => ({
+  checkUserExists: vi.fn((req: Request, res: Response, next: NextFunction) => next()
+  )
+}));
+
+
 import app from "../../app";
 import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware";
 import { rediscoverLastFmQueue } from "../../queues/rediscoverLastfm.queue";
@@ -25,58 +31,61 @@ vi.mock("bullmq", () => bullmqMock)
 const globalJobsStore = new Map<string, any>()
 vi.mock("../../queues/rediscoverLastfm.queue", () => {
 
-    const { Queue } = require("bullmq")
-    const queue = new Queue("rediscover-loved-tracks-last-fm")
+  const { Queue } = require("bullmq")
+  const queue = new Queue("rediscover-loved-tracks-last-fm")
 
-    const originalAdd = queue.add
+  const originalAdd = queue.add
 
-    queue.add = async (name: string, data: any) => {
-        const job = await originalAdd.call(queue, name, data)
+  queue.add = async (name: string, data: any) => {
+    const job = await originalAdd.call(queue, name, data)
 
-        const originalRemove = job.remove.bind(job)
-        job.remove = async () => {
-            // Remove do store antes de chamar o remove original
-            globalJobsStore.delete(job.id)
-            return originalRemove()
-        }
-
-        globalJobsStore.set(job.id, job)
-        return job
-
+    const originalRemove = job.remove.bind(job)
+    job.remove = async () => {
+      // Remove do store antes de chamar o remove original
+      globalJobsStore.delete(job.id)
+      return originalRemove()
     }
 
-    return {
-        rediscoverLastFmQueue: queue
-    }
+    globalJobsStore.set(job.id, job)
+    return job
+
+  }
+
+  return {
+    rediscoverLastFmQueue: queue
+  }
 })
 
 
 import { LastFmController } from "../../controllers/last-fm.controller";
 LastFmController.addJobToQueue = (async (
+  candidateFrom,
+  candidateTo,
+  comparisonFrom,
+  comparisonTo,
+  lastFmUser
+) => {
+
+  const job = await rediscoverLastFmQueue.add("rediscover-loved-tracks-last-fm", {
     candidateFrom,
     candidateTo,
     comparisonFrom,
     comparisonTo,
     lastFmUser
-) => {
+  })
 
-    const job = await rediscoverLastFmQueue.add("rediscover-loved-tracks-last-fm", {
-        candidateFrom,
-        candidateTo,
-        comparisonFrom,
-        comparisonTo,
-        lastFmUser
-    })
-
-    return job
+  return job
 })
+
+import * as userExists from "../../middlewares/user-exists-last-fm.middleware";
 
 describe("validation of dates", () => {
   let validCsrfToken: string;
 
   beforeAll(() => {
     validCsrfToken = generateCsrfToken();
-  });
+    // Guarda a implementação original do mock (que apenas chama next)
+  })
 
   it("Should return 202 when passed a valid date", async () => {
     const payload = {
@@ -157,7 +166,7 @@ describe("validation of dates", () => {
   });
 
   it("Should return 500 if candidateFrom is after CandidateTo", async () => {
-   const payload = {
+    const payload = {
       candidateFrom: "2026-04-06",
       candidateTo: "2026-05-22",
       comparisonFrom: "2026-05-01",
@@ -215,4 +224,5 @@ describe("validation of dates", () => {
     expect(response.status).toBe(500);
     expect(response.body.error).toContain("after account creation date");
   });
+
 });

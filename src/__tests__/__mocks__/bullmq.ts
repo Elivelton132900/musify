@@ -1,52 +1,238 @@
+// import { vi } from 'vitest'
+
+// const jobsStore = new Map<string, any>()
+
+// const mockQueue = class {
+//     add = vi.fn().mockImplementation(async (name: string, data: any, opts: any) => {
+//         const jobId = data.jobIdMocked || `job-${Date.now()}-${Math.random()}`
+//         const delay = opts?.delay || 0
+//         const formattedData = {
+//             params: {
+//                 spotifyId: data.spotifyId || data.params?.spotifyId || "fake-spotify-user-id",
+//                 compare: data.compare || data.params?.compare || {
+//                     firstCompare: "long_term",
+//                     secondCompare: "short_term"
+//                 }
+//             },
+//             access_token: data.access_token || "fake-access-token-123",
+//             spotifyId: data.spotifyId || "fake-spotify-user-id",
+//             compare: data.compare || {
+//                 firstCompare: "long_term",
+//                 secondCompare: "short_term"
+//             }
+//         }
+
+//         let currentState = delay > 0 ? "delayed" : "waiting"
+//         let isCancelled = false
+//         let isCompleted = false
+//         let progress = 0
+//         let processingTimeout: NodeJS.Timeout | null = null
+
+//         const job = {
+//             id: jobId,
+//             name: name,
+//             data: formattedData,
+//             timestamp: Date.now(),
+//             attempts: 0,
+//             delay: 0,
+//             getState: vi.fn().mockImplementation(async () => {
+//                 if (isCancelled) return 'failed'
+//                 if (isCompleted) return 'completed'
+//                 return currentState
+//             }),
+
+//             updateProgress: vi.fn().mockImplementation(async (value: number) => {
+//                 progress = value
+//             }),
+
+//             remove: vi.fn().mockImplementation(async () => {
+//                 if (processingTimeout) {
+//                     clearTimeout(processingTimeout)
+//                 }
+//                 jobsStore.delete(jobId)
+//                 return undefined
+//             }),
+
+//             returnvalue: null
+//         }
+//         jobsStore.set(jobId, job)
+//         if (delay >= 0) {
+//             processingTimeout = setTimeout(async () => {
+//                 const storedJob = jobsStore.get(jobId)
+//                 if (storedJob && !storedJob.cancelled) {
+//                     // Muda para active
+//                     currentState = 'active'
+
+//                     console.log(`[Mock BullMQ] Job ${jobId} is now ACTIVE`)
+
+//                     // Simula processamento (10 passos, 50ms cada = 500ms total)
+//                     for (let i = 1; i <= 10; i++) {
+//                         if (storedJob.cancelled) {
+//                             currentState = 'failed'
+//                             console.log(`[Mock BullMQ] Job ${jobId} was CANCELLED during processing`)
+//                             break
+//                         }
+//                         progress = i * 10
+//                         await new Promise(resolve => setTimeout(resolve, 50))
+//                     }
+
+//                     // Se não foi cancelado, completa
+//                     if (!storedJob.cancelled) {
+//                         currentState = 'completed'
+//                         isCompleted = true
+//                         progress = 100
+//                         console.log(`[Mock BullMQ] Job ${jobId} COMPLETED successfully`)
+//                     }
+//                 } else if (storedJob?.cancelled) {
+//                     console.log(`[Mock BullMQ] Job ${jobId} was CANCELLED before processing`)
+//                 }
+//             }, delay)
+//         }
+
+//         return job
+//     })
+
+
+
+//     getJob = vi.fn().mockImplementation(async (jobId: string) => {
+//         const job = jobsStore.get(jobId) || null
+//         if (job) {
+//             return {
+//                 ...job,
+//                 getState: job.getState,
+//                 updateProgress: job.updateProgress,
+//                 remove: job.remove
+//             }
+//         }
+//         return null
+//     })
+
+//     getJobs = vi.fn().mockImplementation(async () => {
+//         return Array.from(jobsStore.values())
+//     })
+// }
+
+// const mockQueueEvents = class {
+//     on = vi.fn().mockReturnThis()
+//     close = vi.fn().mockResolvedValue(undefined)
+// }
+
+// const mockWorker = class {
+//     on = vi.fn()
+//     close = vi.fn().mockResolvedValue(undefined)
+// }
+
+// const mockQueueScheduler = class {
+//     close = vi.fn().mockResolvedValue(undefined)
+// }
+
+// export default {
+//     Queue: mockQueue,
+//     QueueEvents: mockQueueEvents,
+//     Worker: mockWorker,
+//     QueueScheduler: mockQueueScheduler
+// }
+
 import { vi } from 'vitest'
 
 const jobsStore = new Map<string, any>()
 
 const mockQueue = class {
-    add = vi.fn().mockImplementation(async (name: string, data: any) => {
-        const jobId = `job-${Date.now()}-${Math.random()}`
-        const formattedData = {
-            params: {
-                spotifyId: data.spotifyId || data.params?.spotifyId || "fake-spotify-user-id",
-                compare: data.compare || data.params?.compare || {
-                    firstCompare: "long_term",
-                    secondCompare: "short_term"
-                }
-            },
-            access_token: data.access_token || "fake-access-token-123",
-            spotifyId: data.spotifyId || "fake-spotify-user-id",
-            compare: data.compare || {
-                firstCompare: "long_term",
-                secondCompare: "short_term"
-            }
-        }
-        const job = {
+    constructor(name: string) {
+        this.name = name
+    }
+
+    name: string
+
+    add = vi.fn().mockImplementation(async (name: string, data: any, opts?: any) => {
+        const jobId = data.jobIdMocked || `job-${Date.now()}-${Math.random()}`
+        const delay = opts?.delay || 0
+
+        // Estado do job
+        let currentState = delay > 0 ? 'delayed' : 'waiting'
+        let isCancelled = false
+        let progress = 0
+
+        const jobObj = {
             id: jobId,
             name: name,
-            data: formattedData,
+            data: data,
             timestamp: Date.now(),
-            attempts: 0,
-            delay: 0,
-            getState: vi.fn().mockResolvedValue("waiting"),
-            remove: vi.fn().mockImplementation(async () => {
+            delay: delay,
+            progress: progress,
+            cancelled: false,
+
+            getState: async () => {
+                if (isCancelled) return 'failed'
+                return currentState
+            },
+
+            updateProgress: async (value: number) => {
+                progress = value
+            },
+
+            remove: async () => {
                 jobsStore.delete(jobId)
                 return undefined
-            }),
-            returnvalue: null
+            }
         }
-        jobsStore.set(jobId, job)
-        return job
+
+        jobsStore.set(jobId, jobObj)
+
+        // Simula o processamento após o delay
+        if (delay >= 0) {
+            setTimeout(async () => {
+                const stored = jobsStore.get(jobId)
+                if (stored && !stored.cancelled) {
+                    currentState = 'active'
+                    console.log(`[BullMQ] Job ${jobId} is now ACTIVE`)
+
+                    // Processa por 2 segundos (dá tempo para cancelar)
+                    for (let i = 1; i <= 20; i++) {
+                        if (stored.cancelled) {
+                            currentState = 'failed'
+                            console.log(`[BullMQ] Job ${jobId} was CANCELLED`)
+                            break
+                        }
+                        progress = i * 5
+                        await new Promise(resolve => setTimeout(resolve, 100))
+                    }
+
+                    if (!stored.cancelled) {
+                        currentState = 'completed'
+                        progress = 100
+                        console.log(`[BullMQ] Job ${jobId} COMPLETED`)
+                    }
+                }
+            }, delay)
+        }
+
+        return {
+            id: jobObj.id,
+            name: jobObj.name,
+            data: jobObj.data,
+            timestamp: jobObj.timestamp,
+            delay: jobObj.delay,
+            getState: jobObj.getState,
+            updateProgress: jobObj.updateProgress,
+            remove: jobObj.remove
+        }
     })
 
     getJob = vi.fn().mockImplementation(async (jobId: string) => {
-        const job = jobsStore.get(jobId) || null
-        if (job) {
-            return {
-                ...job,
-                remove: job.remove
-            }
+        const stored = jobsStore.get(jobId)
+        if (!stored) return null
+
+        return {
+            id: stored.id,
+            name: stored.name,
+            data: stored.data,
+            timestamp: stored.timestamp,
+            delay: stored.delay,
+            getState: stored.getState,
+            updateProgress: stored.updateProgress,
+            remove: stored.remove
         }
-        return null
     })
 
     getJobs = vi.fn().mockImplementation(async () => {
@@ -54,23 +240,17 @@ const mockQueue = class {
     })
 }
 
-const mockQueueEvents = class {
-    on = vi.fn().mockReturnThis()
-    close = vi.fn().mockResolvedValue(undefined)
-}
-
-const mockWorker = class {
-    on = vi.fn()
-    close = vi.fn().mockResolvedValue(undefined)
-}
-
-const mockQueueScheduler = class {
-    close = vi.fn().mockResolvedValue(undefined)
-}
-
 export default {
     Queue: mockQueue,
-    QueueEvents: mockQueueEvents,
-    Worker: mockWorker,
-    QueueScheduler: mockQueueScheduler
+    QueueEvents: class {
+        on = vi.fn().mockReturnThis()
+        close = vi.fn().mockResolvedValue(undefined)
+    },
+    Worker: class {
+        on = vi.fn()
+        close = vi.fn().mockResolvedValue(undefined)
+    },
+    QueueScheduler: class {
+        close = vi.fn().mockResolvedValue(undefined)
+    }
 }

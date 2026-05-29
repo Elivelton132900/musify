@@ -242,6 +242,9 @@ export type RediscoverLovedTracksBody = {
     comparisonFrom: string
     comparisonTo: string
     lastFmUser: string
+    disctinct?: number | undefined,
+    jobIdMocked?: string
+    delay?: number
 }
 
 export interface FetchPageResultSingle {

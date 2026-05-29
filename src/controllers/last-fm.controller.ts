@@ -18,6 +18,7 @@ export class LastFmController {
 
             const fetchInDays = candidateEnd.diff(candidateStart, "day")
             const {
+                distinct,
                 candidateFrom,
                 candidateTo,
                 comparisonFrom,
@@ -26,14 +27,14 @@ export class LastFmController {
             } = query
 
 
-
             const job = await LastFmController.addJobToQueue(
                 candidateFrom,
                 candidateTo,
                 comparisonFrom,
                 comparisonTo,
                 lastFmUser,
-                fetchInDays
+                fetchInDays,
+                distinct
             )
 
 

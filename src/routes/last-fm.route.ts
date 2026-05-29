@@ -6,6 +6,7 @@ import { LastFmController } from "../controllers/last-fm.controller"
 import { resolveDateDefaults } from "../middlewares/resolve-date-defaults.middleware"
 import { jobWithSameUrlExists } from "../middlewares/job-with-same-url-exists-last-fm.middleware"
 import { csrfProtection } from "../middlewares/csrf-protection.middleware"
+import { checkUserExists } from "../middlewares/user-exists-last-fm.middleware"
 
 export const lastFmRoutes = Router()
 
@@ -19,6 +20,7 @@ lastFmRoutes.get(
 
 lastFmRoutes.post(
     "/lastfm/loved-tracks/jobs",
+    checkUserExists,
     csrfProtection,
     resolveDateDefaults,
     jobWithSameUrlExists,

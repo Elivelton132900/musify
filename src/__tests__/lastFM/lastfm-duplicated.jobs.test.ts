@@ -25,6 +25,10 @@ vi.mock("../../middlewares/resolve-date-defaults.middleware", async () => {
 });
 
 
+vi.mock("../../middlewares/user-exists-last-fm.middleware", async  () => ({
+    checkUserExists: (req: Request, res: Response, next: NextFunction) => next()
+}))
+
 vi.mock("../../src/middlewares/csrf-protection.middleware", () => ({
     csrfProtection: (_req: Request, _res: Response, next: NextFunction) => next()
 }));
