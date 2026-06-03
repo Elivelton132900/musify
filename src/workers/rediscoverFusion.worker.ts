@@ -20,18 +20,15 @@ export const rediscoverFusionWorker = new Worker(
     async (job) => {
         if (job.name !== "rediscover-fusion") return
 
-        console.log("entrei no worker, job id: ", job.id)
         const controller = new AbortController()
         abortControllers.set(job.id!, controller)
         const { signal } = controller
 
         const { params } = job.data as { params: FusionBody }
         const { access_token, spotifyId, compare, lastFmUser } = params
-        console.log("COMPAREEEEEEEEEE: ", compare)
         await throwIfCanceledFusion(job, signal, spotifyId, compare)
         if (signal.aborted) throw new JobCanceledError()
 
-        console.log("ACCESS TOKEEEEEEEEEEEEEEEEEEEEEEEN ", access_token)
 
         if (compare.firstCompare === TimeRange.loved_tracks) {
             throw new Error("Fist compare can not be Loved Tracks")
@@ -61,8 +58,6 @@ export const rediscoverFusionWorker = new Worker(
                 abortControllers,
             )
         }
-        console.log("\n\n\n\n\n FIRST CCOMPAREEEEE \n\n\n\n ", lastFmCompare)
-
         if (!firstCompare) {
             await fetchSingleRangeNotInCache(
                 signal,

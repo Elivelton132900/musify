@@ -6,11 +6,12 @@ import { safeAxiosGet } from "./lastFmUtils"
 import { JobCanceledError } from "./spotifyUtils"
 import { RecentTracks, trackRecentData } from "../models/last-fm.model"
 import zlib from "zlib"
-import { lastFmFusionFormat, LastFmHistory } from "../models/fusion.model"
+import { FusionBody, lastFmFusionFormat, LastFmHistory } from "../models/fusion.model"
 import { SpotifyService } from "../services/spotify.service"
 import { lastFmMapper } from "./lastFmMapper"
 import { fusionMapper } from "./fusionMapper"
 import { SpotifyMapper, SpotifyMapperSavedTracks } from "./spotifyMapper"
+import { rediscoverFusionQueue } from "../queues/rediscoverFusion.queue"
 
 export const dateBasedOnRange = (range: {
     firstCompare: TimeRange
@@ -276,12 +277,16 @@ export const fetchTracksNotInCacheLovedTracks = async (
         const lovedTracksMapped = lovedTracks.map((track) =>
             SpotifyMapperSavedTracks.toTopTrackData(track)
         )
-
-        const size = Buffer.byteLength(JSON.stringify(lovedTracksMapped), "utf8")
         const compressedLovedTracks = await compressMusics(lovedTracksMapped)
 
+        const sizeBeforeBytes = Buffer.byteLength(JSON.stringify(lovedTracksMapped), "utf8")
+        const sizeBeforeKB = (sizeBeforeBytes / 1024).toFixed(2)
+        const sizeBeforeMB = (sizeBeforeBytes / (1024 * 1024)).toFixed(2)
+        const sizeAfterBytes = compressedLovedTracks.length
+
+        console.log(`📊 loved_tracks (antes da compressão): ${sizeBeforeBytes} bytes (${sizeBeforeKB} KB / ${sizeBeforeMB} MB)`)
         console.log(
-            `📊 loved_tracks (depois da compressão): ${(size / 1024).toFixed(2)} KB / ${(size / (1024 * 1024)).toFixed(2)} MB`
+            `📊 loved_tracks (depois da compressão): ${(sizeAfterBytes / 1024).toFixed(2)} KB / ${(sizeAfterBytes / (1024 * 1024)).toFixed(2)} MB`
         )
         console.log(`📊 Número de tracks: ${lovedTracksMapped.length}`)
 
@@ -339,12 +344,22 @@ export const fetchSingleRangeNotInCache = async (
             SpotifyMapper.toTopTrackData(track)
         )
 
-        const size = Buffer.byteLength(JSON.stringify(topMusicsMapped), "utf8")
+
+        // Tamanho ANTES da compressão
+        const sizeBeforeBytes = Buffer.byteLength(JSON.stringify(topMusicsMapped), "utf8")
+        const sizeBeforeKB = (sizeBeforeBytes / 1024).toFixed(2)
+        const sizeBeforeMB = (sizeBeforeBytes / (1024 * 1024)).toFixed(2)
+        console.log(`📊 Spotify (${compare.firstCompare}) - antes da compressão: ${sizeBeforeKB} KB / ${sizeBeforeMB} MB`)
+
         const compressedData = await compressMusics(topMusicsMapped)
 
-        console.log(
-            `📊 Spotify (${compare.firstCompare}): ${(size / 1024).toFixed(2)} KB / ${(size / (1024 * 1024)).toFixed(2)} MB`
-        )
+        // Tamanho DEPOIS da compressão
+        const sizeAfterBytes = compressedData.length
+        const sizeAfterKB = (sizeAfterBytes / 1024).toFixed(2)
+        const sizeAfterMB = (sizeAfterBytes / (1024 * 1024)).toFixed(2)
+
+        console.log(`📊 Spotify (${compare.firstCompare}) - depois da compressão: ${sizeAfterKB} KB / ${sizeAfterMB} MB`)
+
         console.log(`📊 Número de tracks: ${topMusicsMapped.length}`)
 
         await redis.set(
@@ -365,6 +380,26 @@ export const fetchSingleRangeNotInCache = async (
     } finally {
         abortControllers.delete(job.id!)
     }
+}
+
+export async function addJobToQueue(
+    params: FusionBody
+) {
+    const job = await rediscoverFusionQueue.add(
+        "rediscover-fusion",
+        {
+            params,
+        },
+        {
+            removeOnComplete: {
+                age: 60 * 60 * 24 * 10,
+            },
+            removeOnFail: false,
+        },
+    )
+
+    return job
+
 }
 
 export const fetchLastFmNotInCache = async (
@@ -396,12 +431,12 @@ export const fetchLastFmNotInCache = async (
             throw new Error("Last FM returned no values")
         }
 
-        const LastResultSize = Buffer.byteLength(
+        const lastResultSize = Buffer.byteLength(
             JSON.stringify(lastFmResult),
             "utf8",
         )
         console.log(
-            `📊 LastFM (antes da compressão): ${(LastResultSize / 1024).toFixed(2)} KB / ${(LastResultSize / (1024 * 1024)).toFixed(2)} MB`,
+            `📊 LastFM (antes da compressão): ${(lastResultSize / 1024).toFixed(2)} KB / ${(lastResultSize / (1024 * 1024)).toFixed(2)} MB`,
         )
         console.log(`📊 Número de tracks: ${lastFmResult.length}`)
 
@@ -415,6 +450,13 @@ export const fetchLastFmNotInCache = async (
 
         const lastFmFormattedCompressed = await compressMusics(lastFmFormatted)
 
+        const lastCompressedSize = Buffer.byteLength(
+            JSON.stringify(lastFmFormattedCompressed),
+            "utf8"
+        )
+
+        console.log(`📊 LastFM (depois da compressão): ${(lastCompressedSize / 1024).toFixed(2)} KB / ${(lastCompressedSize / (1024 * 1024)).toFixed(2)} MB`,
+        )
         await redis.set(
             `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
             lastFmFormattedCompressed,

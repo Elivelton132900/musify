@@ -25,8 +25,6 @@ export const jobWithSameUrlExists = async (
         const { spotifyId } = decoded
 
         const newRequest = { spotifyId, lastFmUser, compare }
-        console.log("new", newRequest)
-
         const jobsInQueue = await rediscoverFusionQueue.getJobs(
             ["active", "completed", "waiting"],
             0,

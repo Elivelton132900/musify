@@ -26,12 +26,12 @@ import { rediscoverLastFmQueue } from "../../queues/rediscoverLastfm.queue"
 import dayjs from "dayjs"
 import app from "../../app"
 import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware"
+import { Job } from "bullmq"
 
 // ✅ Mock do add com vi.spyOn
 const addSpy = vi.spyOn(rediscoverLastFmQueue, 'add')
 // @ts-ignore
 addSpy.mockImplementation(async (name, data, opts) => {
-    console.log('[MOCK] add chamado, jobId:', data.jobIdMocked || opts?.jobId)
     // ✅ Garante que o ID seja string (BullMQ não aceita números)
     const jobId = String(data.jobIdMocked || opts?.jobId || `job-${Date.now()}`)
     
@@ -46,24 +46,20 @@ addSpy.mockImplementation(async (name, data, opts) => {
         updateProgress: vi.fn().mockResolvedValue(undefined)
     } 
     
-    console.log('[MOCK] Retornando job com ID:', job.id)
     return job
 })
 
 // ✅ Mock do getJob
 const getJobSpy = vi.spyOn(rediscoverLastFmQueue, 'getJob')
-// @ts-ignore
-getJobSpy.mockImplementation(async (jobId) => {
-    console.log('[MOCK] getJob chamado para:', jobId)
+getJobSpy.mockImplementation(async (jobId): Promise<Job | undefined> => {
     return {
         id: String(jobId),
-        getState: vi.fn().mockResolvedValue('waiting'),
+        getState:  vi.fn().mockResolvedValue('waiting'),
         remove: vi.fn().mockResolvedValue(undefined)
-    }
+    } as unknown as Job
 })
 
 async function createJob(fetchInDays?: number, distinct?: number, jobIdMocked?: string, delay?: number) {
-    console.log('[TEST] createJob chamado com jobIdMocked:', jobIdMocked)
     
     // ✅ Garante que o jobIdMocked seja string
     const finalJobId = jobIdMocked ? String(jobIdMocked) : undefined
@@ -85,8 +81,7 @@ async function createJob(fetchInDays?: number, distinct?: number, jobIdMocked?: 
             delay: delay || 0
         }
     )
-    
-    console.log('[TEST] createJob resultado ID:', result?.id)
+
     return result
 }
 
@@ -98,14 +93,12 @@ describe("Real data simulation", () => {
         const job = await createJob(fetchInDays)
         expect(job).toBeDefined()
         expect(job?.id).toBeDefined()
-        console.log('✅ Job criado com ID:', job?.id)
     })
 
     it("Should be able to create a job without 'distinct'", async () => {
         const job = await createJob(fetchInDays)
         expect(job).toBeDefined()
         expect(job?.id).toBeDefined()
-        console.log('✅ Job criado sem distinct, ID:', job?.id)
     })
 
     it("Should be able to consult a job", async () => {
@@ -113,7 +106,6 @@ describe("Real data simulation", () => {
         expect(job).toBeDefined()
         expect(job.getState).toBeDefined()
         const state = await job.getState()
-        console.log('✅ Estado do job:', state)
         expect(state).toBe('waiting')
     })
 
@@ -125,8 +117,6 @@ describe("Real data simulation", () => {
         const job = await createJob(fetchInDays, 2, jobIdMocked, 100)
         expect(job).toBeDefined()
         expect(job.id).toBe(jobIdMocked)
-        console.log('✅ Job criado para cancelamento, ID:', job.id)
-
         // Aguarda um pouco
         await new Promise(resolve => setTimeout(resolve, 200))
 
@@ -134,9 +124,6 @@ describe("Real data simulation", () => {
             .post(`/lastfm/loved-tracks/jobs/${jobIdMocked}/cancel`)
             .set('x-csrf-token', csrf_token)
             .set('Cookie', [`csrf_token=${csrf_token}`])
-
-        console.log('Status do cancelamento:', cancelResponse.status)
-        console.log('Resposta do cancelamento:', cancelResponse.body)
 
         expect(cancelResponse.status).toBe(200)
         expect(cancelResponse.body).toHaveProperty("status")

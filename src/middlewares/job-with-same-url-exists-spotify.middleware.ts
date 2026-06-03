@@ -29,16 +29,11 @@ export const jobWithSameUrlExists = async (
         const { userId } = decoded
         const rangeToCompare = req.body.range
 
-        console.log("rangeToCompare:", rangeToCompare)
-        console.log("userId:", userId)
-
         const allJobs = await rediscoverSpotifyQueue.getJobs(
             ["active", "waiting", "completed"],
             0,
             -1,
         )
-
-        console.log(`Jobs encontrados: ${allJobs.length}`)
 
         const jobExists = allJobs.some((job) => {
             const { spotifyId: jobUserId, firstCompare, secondCompare } = extractJobData(job)

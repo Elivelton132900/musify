@@ -27,6 +27,5 @@ export const mockRedis = vi.mock("../../infra/redis.ts", () => ({
         _clearMemory: () => memoryStore.clear()
     }
 }))
-export default {
-    redis: mockRedis
-}
+
+export default { Redis: mockRedis }

@@ -10,8 +10,6 @@ describe("Spotify callback code", () => {
             const response = await request(app)
                 .get("/callbackspotify")
                 // Sem code
-            console.log("BODY ", response.body)
-
             expect(response.status).toBe(400)
             expect(response.body.validation.query.message).toBe(`"code" is required`)
 
@@ -21,7 +19,6 @@ describe("Spotify callback code", () => {
             const response = await request(app)
                 .get("/callbackspotify?code=")
 
-            console.log(response.body.error)
             expect(response.status).toBe(400)
             expect(response.body.error || response.body.validation).toBeDefined()
         }) 

@@ -25,12 +25,12 @@ export class SpotifyService {
         job: Job,
         signal: AbortSignal,
     ): Promise<SpotifyUserTopItems[]> {
-        console.log("🔍 fetchTopTracks - job.id:", job?.id)
+        console.log("fetchTopTracks - job.id:", job?.id)
         console.log(
             "🔍 fetchTopTracks - job.data:",
             JSON.stringify(job?.data, null, 2),
         )
-        console.log("🔍 fetchTopTracks - time_range:", time_range)
+        console.log("fetchTopTracks - time_range:", time_range)
         const items: SpotifyUserTopItems[] = []
         const timeRangeValue = TimeRange[time_range]
         let endpoint: string = `https://api.spotify.com/v1/me/top/tracks?time_range=${timeRangeValue}&limit=50`
@@ -52,7 +52,7 @@ export class SpotifyService {
                 next.includes("https://api.spotify.com/v1/")
             ) {
                 console.log(
-                    "second do: ",
+                    "Progressão: ",
                     response.data.offset,
                     response.data.total,
                 )
@@ -155,7 +155,6 @@ export class SpotifyService {
             }
         } while (endpoint.includes("https://api.spotify.com/"))
 
-        console.log("vou retornar")
         return items
     }
 
@@ -216,22 +215,22 @@ export class SpotifyService {
                         signal,
                     )
 
-                const SpotifyResultSize = Buffer.byteLength(
-                    JSON.stringify(topMusics),
-                    "utf8",
-                )
-                console.log(
-                    `📊 Spotify (antes da compressão): ${(SpotifyResultSize / 1024).toFixed(2)} KB / ${(SpotifyResultSize / (1024 * 1024)).toFixed(2)} MB`,
-                )
+                const sizeBeforeBytes = Buffer.byteLength(JSON.stringify(topMusics), "utf8")
+                const sizeBeforeKB = (sizeBeforeBytes / 1024).toFixed(2)
+                const sizeBeforeMB = (sizeBeforeBytes / (1024 * 1024)).toFixed(2)
+
+                console.log(`📊 Spotify (antes da compressão): ${sizeBeforeKB} KB / ${sizeBeforeMB} MB`)
                 console.log(`📊 Número de tracks: ${topMusics.length}`)
 
-                const compressedTopMusics = zlib.gzipSync(
-                    JSON.stringify(topMusics),
-                )
+                // Comprime
+                const compressedTopMusics = zlib.gzipSync(JSON.stringify(topMusics))
 
-                console.log(
-                    `📊 spotify (depois depois compressão): ${(SpotifyResultSize / 1024).toFixed(2)} KB / ${(SpotifyResultSize / (1024 * 1024)).toFixed(2)} MB`,
-                )
+                // Tamanho DEPOIS da compressão
+                const sizeAfterBytes = compressedTopMusics.length
+                const sizeAfterKB = (sizeAfterBytes / 1024).toFixed(2)
+                const sizeAfterMB = (sizeAfterBytes / (1024 * 1024)).toFixed(2)
+
+                console.log(`📊 Spotify (depois da compressão): ${sizeAfterKB} KB / ${sizeAfterMB} MB`)
                 console.log(`📊 Número de tracks: ${topMusics.length}`)
 
                 await redis.set(

@@ -9,7 +9,6 @@ export const restrictSameUser = async (req: Request, res: Response, next: NextFu
 
     const job = await rediscoverFusionQueue.getJob(jobId)
     if (!job) {
-        console.log("entrei")
         return res.status(404).json({
             error: "Job not found"
         })
@@ -26,7 +25,7 @@ export const restrictSameUser = async (req: Request, res: Response, next: NextFu
             error: "You can not delete or cancel a job from a different person"
         })
     }
-    
+
 
     return next()
 }

@@ -79,9 +79,6 @@ describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
             ])
             .send(payload)
 
-        console.log(firstResponse.error)
-        console.log(firstResponse.text)
-
         const secondResponse = await request(app)
             .post("/spotify/loved-tracks/comparison-jobs")
             .set("Cookie", "spotify_token=fake-token")

@@ -5,8 +5,9 @@ import { DeleteRoute, ObjectId } from "../models/last-fm.model"
 import { redis } from "../infra/redis"
 import jwt from "jsonwebtoken"
 import { SpotifyJWTPayload } from "../models/spotify.auth.model"
+import { addJobToQueue as originalAddJobToQueue } from "../utils/fusionUtils"
 
-interface FusionJobData {
+export interface FusionJobData {
     params: {
         access_token: string;
         spotifyId: string;
@@ -17,7 +18,9 @@ interface FusionJobData {
 
 
 export class FusionController {
+    static addJobToQueue = originalAddJobToQueue
     static async rediscoverFusion(req: Request, res: Response) {
+    
         try {
             const body = req.body as unknown as FusionBody
             const { compare, lastFmUser } = body
@@ -29,7 +32,6 @@ export class FusionController {
             }
 
             const decoded = jwt.decode(spotifyCookies) as SpotifyJWTPayload
-
             const access_token: string = decoded?.access_token
             const spotifyId: string = decoded?.spotifyId
 
@@ -40,19 +42,7 @@ export class FusionController {
                 lastFmUser,
             } as FusionBody
 
-            const job = await rediscoverFusionQueue.add(
-                "rediscover-fusion",
-                {
-                    params,
-                },
-                {
-                    removeOnComplete: {
-                        age: 60 * 60 * 24 * 10,
-                    },
-                    removeOnFail: false,
-                },
-            )
-
+            const job = await FusionController.addJobToQueue(params)
             res.status(202).json({
                 jobId: job.id,
                 status: "processing",

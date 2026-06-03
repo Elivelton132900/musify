@@ -133,9 +133,16 @@
 //     QueueScheduler: mockQueueScheduler
 // }
 
-import { vi } from 'vitest'
 
+
+
+// ====================================================
+
+import { vi } from 'vitest'
+import { TrackDataSpotify } from '../../models/spotify.model'
+import { trackDataSpotifyReturnValue } from '../example-response-fusion'
 const jobsStore = new Map<string, any>()
+let nextId = 1
 
 const mockQueue = class {
     constructor(name: string) {
@@ -144,79 +151,34 @@ const mockQueue = class {
 
     name: string
 
-    add = vi.fn().mockImplementation(async (name: string, data: any, opts?: any) => {
-        const jobId = data.jobIdMocked || `job-${Date.now()}-${Math.random()}`
-        const delay = opts?.delay || 0
+    add = vi.fn(async (name: string, data: any) => {
+        const jobId = String(nextId++)
 
-        // Estado do job
-        let currentState = delay > 0 ? 'delayed' : 'waiting'
-        let isCancelled = false
-        let progress = 0
+        let state = "waiting"
 
-        const jobObj = {
+        const job = {
             id: jobId,
-            name: name,
-            data: data,
-            timestamp: Date.now(),
-            delay: delay,
-            progress: progress,
-            cancelled: false,
+            name,
+            data,
+            returnvalue: null as TrackDataSpotify[] | null,
+            getState: vi.fn(async () => state),
 
-            getState: async () => {
-                if (isCancelled) return 'failed'
-                return currentState
-            },
-
-            updateProgress: async (value: number) => {
-                progress = value
-            },
-
-            remove: async () => {
+            remove: vi.fn(async () => {
                 jobsStore.delete(jobId)
-                return undefined
-            }
+            }),
         }
+        jobsStore.set(jobId, job)
 
-        jobsStore.set(jobId, jobObj)
+        setTimeout(() => {
+            state = "active"
+        }, 100)
 
-        // Simula o processamento após o delay
-        if (delay >= 0) {
-            setTimeout(async () => {
-                const stored = jobsStore.get(jobId)
-                if (stored && !stored.cancelled) {
-                    currentState = 'active'
-                    console.log(`[BullMQ] Job ${jobId} is now ACTIVE`)
+        setTimeout(() => {
+            state = "completed"
+            job.returnvalue = trackDataSpotifyReturnValue
+        }, 500)
 
-                    // Processa por 2 segundos (dá tempo para cancelar)
-                    for (let i = 1; i <= 20; i++) {
-                        if (stored.cancelled) {
-                            currentState = 'failed'
-                            console.log(`[BullMQ] Job ${jobId} was CANCELLED`)
-                            break
-                        }
-                        progress = i * 5
-                        await new Promise(resolve => setTimeout(resolve, 100))
-                    }
-
-                    if (!stored.cancelled) {
-                        currentState = 'completed'
-                        progress = 100
-                        console.log(`[BullMQ] Job ${jobId} COMPLETED`)
-                    }
-                }
-            }, delay)
-        }
-
-        return {
-            id: jobObj.id,
-            name: jobObj.name,
-            data: jobObj.data,
-            timestamp: jobObj.timestamp,
-            delay: jobObj.delay,
-            getState: jobObj.getState,
-            updateProgress: jobObj.updateProgress,
-            remove: jobObj.remove
-        }
+        return job
     })
 
     getJob = vi.fn().mockImplementation(async (jobId: string) => {
@@ -254,3 +216,6 @@ export default {
         close = vi.fn().mockResolvedValue(undefined)
     }
 }
+
+// __mocks__/bullmq.ts
+

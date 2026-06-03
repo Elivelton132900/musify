@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import { beforeAll, describe, expect, it, vi,  } from "vitest";
 import { NextFunction, Request, Response } from "express";
 import request from 'supertest';
 import bullmqMock from "../__mocks__/bullmq";
@@ -77,7 +77,6 @@ LastFmController.addJobToQueue = (async (
   return job
 })
 
-import * as userExists from "../../middlewares/user-exists-last-fm.middleware";
 
 describe("validation of dates", () => {
   let validCsrfToken: string;

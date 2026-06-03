@@ -42,13 +42,7 @@ export class SpotifyController {
             const secondRange = TimeRange[rangesToCompare[1] as keyof typeof TimeRange]
 
             const compare = { firstCompare: firstRange, secondCompare: secondRange }
-            console.log("🔍 SpotifyController.addJobToQueue é:", SpotifyController.addJobToQueue);
-            console.log("🔍 typeof:", typeof SpotifyController.addJobToQueue);
             const job = await SpotifyController.addJobToQueue(access_token, spotifyId, compare)
-
-            console.log("    JOBBBBBBBBBBBBBBBBBBBB   ", job)
-            console.log("🔍 Dentro do controller - req.spotifyUser:", req.spotifyUser);
-            console.log("🔍 req.user:", (req as any).user);
 
             res.status(202).json({
                 jobId: job.id,
@@ -76,10 +70,6 @@ export class SpotifyController {
         }
 
         const spotifyUser = req.spotifyUser
-        console.log("🔍 job.data:", job.data);
-        console.log("🔍 spotifyUser:", spotifyUser);
-        console.log("🔍 job.data.spotifyId:", job.data?.spotifyId);
-        console.log("🔍 spotifyUser.spotifyId:", spotifyUser?.spotifyId);
         // ✅ Verifica se o job pertence ao usuário autenticado
         if (spotifyUser && job.data?.spotifyId !== spotifyUser.spotifyId) {
             res.status(403).json({
