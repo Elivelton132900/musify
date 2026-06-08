@@ -21,7 +21,6 @@ lastFmRoutes.get(
 lastFmRoutes.post(
     "/lastfm/loved-tracks/jobs",
     checkUserExists,
-    csrfProtection,
     resolveDateDefaults,
     jobWithSameUrlExists,
     celebrate({

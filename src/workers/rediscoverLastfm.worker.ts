@@ -1,6 +1,6 @@
 import "dotenv/config"
 
-import { Worker } from "bullmq"
+import { Job, Worker } from "bullmq"
 import { redis } from "../infra/redis"
 import { LastFmService } from "../services/last-fm.service"
 import { JobCanceledError, throwIfCanceled } from "../utils/lastFmUtils"
@@ -9,53 +9,57 @@ import { rediscoverLastFmQueueEvents } from "../queues/rediscoverLastfm.queue"
 
 const service = new LastFmService()
 
+export const lastFmWorkerProcessor = async (job: Job<RediscoverLovedTracksBody>) => {
+    if (job.name !== "rediscover-loved-tracks-last-fm") return
+    console.log("service =", service)
+    console.log(
+        "typeof rediscoverLovedTracks =",
+        typeof service.rediscoverLovedTracks
+    )
+    console.log("params ", job.data)
+
+
+    const { lastFmUser } = job.data
+
+    const controller = new AbortController()
+    abortControllers.set(job.id!, controller)
+    const { signal } = controller
+
+    await throwIfCanceled(job!, signal)
+
+    try {
+        const result = await service.rediscoverLovedTracks(lastFmUser, job.data, signal, job)
+        console.log("RESULT =", result)
+        console.log("IS ARRAY =", Array.isArray(result))
+        console.log("LENGTH =", result?.length)
+        if (signal.aborted) return
+        if (!result || (Array.isArray(result) && result.length === 0)) {
+            console.warn("Resultado vazio ou inválido, não salvando cache")
+            return {
+                error: "User does not have scrobble or user does not exist",
+            }
+        }
+
+        if (signal.aborted) throw new JobCanceledError()
+
+        return result
+    } catch (e: any) {
+        if (e instanceof JobCanceledError) {
+            console.log("Job canceled by ", job.id)
+            throw e
+        }
+        console.log("Error: ", e)
+        throw e
+    } finally {
+        abortControllers.delete(job.id!)
+    }
+}
+
 const abortControllers = new Map<string, AbortController>()
 
 export const rediscoverLastFmWorker = new Worker(
     "rediscover-loved-tracks-last-fm",
-    async (job) => {
-        if (job.name !== "rediscover-loved-tracks-last-fm") return
-
-        const {
-            params,
-        } = job.data as {
-            params: RediscoverLovedTracksBody
-            hash: string
-            jobId: string
-        }
-
-        const controller = new AbortController()
-        abortControllers.set(job.id!, controller)
-        const { signal } = controller
-        
-        await throwIfCanceled(job!, signal)
-
-        try {
-            const result = await service.rediscoverLovedTracks(params.lastFmUser, params, signal, job)
-            if (signal.aborted) return
-            if (!result || (Array.isArray(result) && result.length === 0)) {
-                console.warn("Resultado vazio ou inválido, não salvando cache", {
-                    params,
-                })
-                return {
-                    error: "User does not have scrobble or user does not exist",
-                }
-            }
-
-            if (signal.aborted) throw new JobCanceledError()
-
-            return result
-        } catch (e: any) {
-            if (e instanceof JobCanceledError) {
-                console.log("Job canceled by ", job.id)
-                throw e
-            }
-            console.log("Error: ", e)
-            throw e
-        } finally {
-            abortControllers.delete(job.id!) // ← ADICIONE ISSO
-        }
-    },
+    lastFmWorkerProcessor,
     {
         connection: redis,
         concurrency: 1,

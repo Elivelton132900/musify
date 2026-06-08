@@ -1,4 +1,4 @@
-import { Worker } from "bullmq"
+import { Job, Worker } from "bullmq"
 import { JobCanceledError } from "../utils/spotifyUtils"
 import {
     descompressMusics,
@@ -15,95 +15,95 @@ import { rediscoverFusionQueueEvents } from "../queues/rediscoverFusion.queue"
 
 const abortControllers = new Map<string, AbortController>()
 
+export const processorFusion = async (job: Job) => {
+    const controller = new AbortController()
+    abortControllers.set(job.id!, controller)
+    const { signal } = controller
+
+    const { params } = job.data as { params: FusionBody }
+    const { access_token, spotifyId, compare, lastFmUser } = params
+    await throwIfCanceledFusion(job, signal, spotifyId, compare)
+    if (signal.aborted) throw new JobCanceledError()
+
+
+    if (compare.firstCompare === TimeRange.loved_tracks) {
+        throw new Error("Fist compare can not be Loved Tracks")
+    }
+
+    if (compare.secondCompare !== TimeRange.loved_tracks) {
+        throw new Error("Second compare must be Loved Track")
+    }
+
+    const lovedTracks = await redis.getBuffer(
+        `fusion:users:${spotifyId}:${TimeRange.loved_tracks}`,
+    )
+    const firstCompare = await redis.getBuffer(
+        `fusion:users:${spotifyId}:${compare.firstCompare}`,
+    )
+
+    const lastFmCompare = await redis.getBuffer(
+        `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
+    )
+
+    if (!lovedTracks) {
+        await fetchTracksNotInCacheLovedTracks(
+            signal,
+            access_token,
+            spotifyId,
+            job,
+            abortControllers,
+        )
+    }
+    if (!firstCompare) {
+        await fetchSingleRangeNotInCache(
+            signal,
+            access_token,
+            spotifyId,
+            compare,
+            job,
+            abortControllers,
+        )
+    }
+
+    if (!lastFmCompare) {
+        await fetchLastFmNotInCache(
+            compare,
+            signal,
+            lastFmUser,
+            job,
+            abortControllers,
+        )
+    }
+
+    const redisCompressedLastFm = await redis.getBuffer(
+        `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
+    )
+    const redisCompressedSpotify = await redis.getBuffer(
+        `fusion:users:${spotifyId}:${TimeRange.loved_tracks}`,
+    )
+
+    if (redisCompressedLastFm === null || redisCompressedSpotify === null) {
+        throw new Error("Cache not found")
+    }
+
+    const descompressedLastFm = descompressMusics<LastFmHistory[]>(
+        redisCompressedLastFm,
+    )
+    const descompressedSpotify = descompressMusics<TrackDataSpotify[]>(
+        redisCompressedSpotify,
+    )
+
+    const finalResult = filterByLastFmHistory(
+        descompressedSpotify,
+        descompressedLastFm,
+    )
+
+    return finalResult
+}
+
 export const rediscoverFusionWorker = new Worker(
     "rediscover-fusion",
-    async (job) => {
-        if (job.name !== "rediscover-fusion") return
-
-        const controller = new AbortController()
-        abortControllers.set(job.id!, controller)
-        const { signal } = controller
-
-        const { params } = job.data as { params: FusionBody }
-        const { access_token, spotifyId, compare, lastFmUser } = params
-        await throwIfCanceledFusion(job, signal, spotifyId, compare)
-        if (signal.aborted) throw new JobCanceledError()
-
-
-        if (compare.firstCompare === TimeRange.loved_tracks) {
-            throw new Error("Fist compare can not be Loved Tracks")
-        }
-
-        if (compare.secondCompare !== TimeRange.loved_tracks) {
-            throw new Error("Second compare must be Loved Track")
-        }
-
-        const lovedTracks = await redis.getBuffer(
-            `fusion:users:${spotifyId}:${TimeRange.loved_tracks}`,
-        )
-        const firstCompare = await redis.getBuffer(
-            `fusion:users:${spotifyId}:${compare.firstCompare}`,
-        )
-
-        const lastFmCompare = await redis.getBuffer(
-            `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
-        )
-
-        if (!lovedTracks) {
-            await fetchTracksNotInCacheLovedTracks(
-                signal,
-                access_token,
-                spotifyId,
-                job,
-                abortControllers,
-            )
-        }
-        if (!firstCompare) {
-            await fetchSingleRangeNotInCache(
-                signal,
-                access_token,
-                spotifyId,
-                compare,
-                job,
-                abortControllers,
-            )
-        }
-
-        if (!lastFmCompare) {
-            await fetchLastFmNotInCache(
-                compare,
-                signal,
-                lastFmUser,
-                job,
-                abortControllers,
-            )
-        }
-
-        const redisCompressedLastFm = await redis.getBuffer(
-            `fusion:users:${lastFmUser}:lastfm:${compare.firstCompare}`,
-        )
-        const redisCompressedSpotify = await redis.getBuffer(
-            `fusion:users:${spotifyId}:${TimeRange.loved_tracks}`,
-        )
-
-        if (redisCompressedLastFm === null || redisCompressedSpotify === null) {
-            throw new Error("Cache not found")
-        }
-
-        const descompressedLastFm = descompressMusics<LastFmHistory[]>(
-            redisCompressedLastFm,
-        )
-        const descompressedSpotify = descompressMusics<TrackDataSpotify[]>(
-            redisCompressedSpotify,
-        )
-
-        const finalResult = filterByLastFmHistory(
-            descompressedSpotify,
-            descompressedLastFm,
-        )
-
-        return finalResult
-    },
+    processorFusion,
     {
         connection: redis,
         concurrency: 1,

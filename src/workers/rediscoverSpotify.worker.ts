@@ -1,63 +1,71 @@
 import { RediscoverJobData } from "./../models/spotify.model"
 import { Job, Worker } from "bullmq"
 import { SpotifyService } from "../services/spotify.service"
+console.log(SpotifyService);
 import { JobCanceledError, throwIfCanceled } from "../utils/spotifyUtils"
 import { redis } from "../infra/redis"
 import { rediscoverSpotifyQueueEvents } from "../queues/rediscoverSpotify.queue"
 
 const abortControllers = new Map<string, AbortController>()
 
+export const spotifyWorkerProcessor = async (job: Job<RediscoverJobData>) => {
+    const { access_token, spotifyId, compare } = job.data
+
+    if (job.name !== "rediscover-loved-tracks-spotify") return
+
+    const controller = new AbortController()
+    abortControllers.set(job.id!, controller)
+
+    const { signal } = controller
+    await throwIfCanceled(job, signal)
+
+    try {
+        const spotifyService = new SpotifyService()
+
+        console.log("spotifyService =", spotifyService)
+        console.log(
+            "typeof syncAndCompare =",
+            typeof spotifyService.syncAndCompare
+        )
+        if (signal.aborted) return
+        const noMoreListenedMusics = await spotifyService.syncAndCompare(
+            access_token,
+            spotifyId,
+            compare,
+            job,
+            signal
+        )
+        if (signal.aborted) return
+
+        if (
+            !noMoreListenedMusics ||
+            (Array.isArray(noMoreListenedMusics) &&
+                noMoreListenedMusics.length === 0)
+        ) {
+            console.warn("Resultado vazio ou inválido, não salvando cache")
+            return {
+                error: "User does not returned any value",
+            }
+        }
+
+        if (signal.aborted) throw new JobCanceledError()
+        console.log("Job successful")
+        return noMoreListenedMusics
+    } catch (e: any) {
+        if (e instanceof JobCanceledError) {
+            console.log("Job canceled by ", job.id)
+            throw e
+        }
+        console.log("Error: ", e)
+        throw e
+    } finally {
+        abortControllers.delete(job.id!)
+    }
+}
+
 export const rediscoverSpotifyWorker = new Worker(
     "rediscover-loved-tracks-spotify",
-    async (job: Job<RediscoverJobData>) => {
-        const { access_token, spotifyId, compare } = job.data
-
-        if (job.name !== "rediscover-loved-tracks-spotify") return
-
-        const controller = new AbortController()
-        abortControllers.set(job.id!, controller)
-
-        const { signal } = controller
-        await throwIfCanceled(job, signal)
-
-        try {
-            const spotifyService = new SpotifyService()
-
-            if (signal.aborted) return
-            const noMoreListenedMusics = await spotifyService.syncAndCompare(
-                access_token,
-                spotifyId,
-                compare,
-                job,
-                signal
-            )
-            if (signal.aborted) return
-
-            if (
-                !noMoreListenedMusics ||
-                (Array.isArray(noMoreListenedMusics) &&
-                    noMoreListenedMusics.length === 0)
-            ) {
-                console.warn("Resultado vazio ou inválido, não salvando cache")
-                return {
-                    error: "User does not returned any value",
-                }
-            }
-
-            if (signal.aborted) throw new JobCanceledError()
-            console.log("Job successful")
-            return noMoreListenedMusics
-        } catch (e: any) {
-            if (e instanceof JobCanceledError) {
-                console.log("Job canceled by ", job.id)
-                throw e
-            }
-            console.log("Error: ", e)
-            throw e
-        } finally {
-            abortControllers.delete(job.id!)
-        }
-    },
+    spotifyWorkerProcessor,
     {
         connection: redis,
         concurrency: 1,
@@ -66,6 +74,8 @@ export const rediscoverSpotifyWorker = new Worker(
         removeOnFail: { age: 3600 },
     },
 )
+
+
 
 rediscoverSpotifyWorker.on("ready", () => {
     console.log("spotify: estou pronto")

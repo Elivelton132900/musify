@@ -124,7 +124,6 @@ describe("Real data simulation", () => {
             .post(`/lastfm/loved-tracks/jobs/${jobIdMocked}/cancel`)
             .set('x-csrf-token', csrf_token)
             .set('Cookie', [`csrf_token=${csrf_token}`])
-
         expect(cancelResponse.status).toBe(200)
         expect(cancelResponse.body).toHaveProperty("status")
         expect(cancelResponse.body.status).toContain("marked as cancelled")

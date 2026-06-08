@@ -16,7 +16,7 @@ export class LastFmService {
     ) {
         return await this.fetcher.rediscoverLovedTracks(
             username,
-            queryParams.fetchInDays,
+            queryParams.fetchInDays ?? 0,
             queryParams.distinct,
             queryParams.candidateFrom,
             queryParams.candidateTo,
