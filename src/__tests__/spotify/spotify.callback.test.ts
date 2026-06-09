@@ -29,7 +29,6 @@ describe("Spotify Authentication", () => {
                 }
             })
 
-            // Mock da resposta do perfil do usuário
 
             mockedAxios.get.mockResolvedValueOnce({
                 data: {
@@ -44,39 +43,29 @@ describe("Spotify Authentication", () => {
             const response = await request(app)
                 .get(`/callbackspotify?code=${mockCode}`)
 
-            // verifica status
 
             expect(response.status).toBe(200)
 
-            // Verifica o body da resposta
             expect(response.body).toHaveProperty('message', 'Login Successful')
             expect(response.body).toHaveProperty('csrf_token')
             expect(response.body).toHaveProperty('user')
             expect(response.body.user).toHaveProperty('id', 'spotify_user_123')
             expect(response.body.user).toHaveProperty('name', 'Test User')
 
-            // verifica cookies
-
             const cookies = response.headers['set-cookie']
             expect(cookies).toBeDefined()
 
 
             const cookiesArray = Array.isArray(cookies) ? cookies : [cookies]
-            // procura pelo cookie spotify_token
             const spotifyTokenCookie = cookiesArray?.find(c => c.startsWith("spotify_token="))
 
             expect(spotifyTokenCookie).toBeDefined()
             expect(spotifyTokenCookie).toContain("HttpOnly")
             expect(spotifyTokenCookie).toContain("Path=/")
 
-
-            // procura pelo cookie csrf_token
-
             const csrfTokenCookies = cookiesArray?.find(c => c.startsWith("csrf_token="))
             expect(csrfTokenCookies).toBeDefined()
             expect(csrfTokenCookies).not.toContain("HttpOnly")
-
-            // verifica se as chamadas foram feitas corretamente
 
             expect(mockedAxios.post).toHaveBeenCalledTimes(1)
             expect(mockedAxios.post).toHaveBeenCalledWith(

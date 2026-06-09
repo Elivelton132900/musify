@@ -6,7 +6,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
-    mockReset: true,
     clearMocks: true,
     restoreMocks: true,
     fileParallelism: false

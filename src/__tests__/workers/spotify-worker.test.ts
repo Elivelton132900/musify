@@ -48,9 +48,6 @@ describe("Worker Spotify", () => {
         worker = rediscoverSpotifyWorker
         await worker.waitUntilReady();
 
-        worker.on("completed", (job) => {
-            console.log("COMPLETED:", job.id)
-        })
     })
 
     afterAll(async () => {
@@ -127,7 +124,6 @@ describe("Worker Spotify", () => {
 
         await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow("Invalid API key or Unauthorized")
 
-        // 4. A prova de fogo: Consultamos o BullMQ para saber o status do Job
         const state = await job.getState()
         expect(state).toBe("failed")
 

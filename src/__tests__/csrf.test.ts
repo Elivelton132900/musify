@@ -11,7 +11,6 @@ vi.mock("../middlewares/is-authenticated.spotify.middleware", () => ({
         res: Response,
         next: NextFunction
     ) => {
-        // Adiciona os dados do usuário Spotify que a aplicação espera
         req.spotifyUser = {
             spotifyId: "test-spotify-id-123",
             userId: "test-user-id-456",
@@ -34,8 +33,6 @@ vi.mock("../middlewares/job-with-same-url-exists-spotify.middleware", () => ({
         res: Response,
         next: NextFunction
     ) => {
-        // Simula que não existe job duplicado
-        // Isso permite que a requisição prossiga
         next();
     }
 }));

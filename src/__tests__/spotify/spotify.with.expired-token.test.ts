@@ -104,7 +104,6 @@ describe("Spotify - Token and CSRF Tests", () => {
         expect(response.status).toBe(403)
         expect(response.body.error).toBe("Invalid CSRF token")
 
-        console.log("DADOS ", response.body, response.status)
       })
 
       it(`${method.toUpperCase()} ${url} should return 403 when CSRF token is wrong`, async () => {

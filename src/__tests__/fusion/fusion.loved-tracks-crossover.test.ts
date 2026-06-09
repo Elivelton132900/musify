@@ -7,10 +7,13 @@ import request from "supertest";
 import { generateCsrfToken } from "../../middlewares/csrf-protection.middleware";
 import { redis } from "../../infra/redis";
 import { trackDataSpotifyReturnValue } from "../example-response-fusion";
+import { Job } from "bullmq";
+
 vi.mock("bullmq", async () => {
     const mod = await import("../__mocks__/bullmq.js")
     return mod.default
 })
+
 const jobData: FusionJobData = {
     params: {
         access_token: "1234",
@@ -21,25 +24,23 @@ const jobData: FusionJobData = {
         },
         lastFmUser: "testuserlastfm"
     }
-};
+}
 
 vi.mock("../../middlewares/csrf-protection.middleware", () => ({
     csrfProtection: (_req: any, _res: any, next: any) => next(),
     generateCsrfToken: () => "mock-csrf-token-123"
-}));
+}))
 
 vi.mock("../../middlewares/job-with-same-url-exists-fusion.middleware", () => ({
     jobWithSameUrlExists: (_req: Request, _res: Response, next: NextFunction) => next()
-}));
-
+}))
 vi.mock("../../middlewares/is-authenticated.spotify.middleware", () => ({
     isAuthenticatedSpotify: (req: any, _res: Response, next: NextFunction) => {
-        req.userId = "fakeUserId";
-        req.spotifyToken = "fake-spotify-token-123";
-        next();
+        req.userId = "fakeUserId"
+        req.spotifyToken = "fake-spotify-token-123"
+        next()
     }
-}));
-
+}))
 
 vi.mock("jsonwebtoken", () => ({
     default: {
@@ -50,84 +51,101 @@ vi.mock("jsonwebtoken", () => ({
     }
 }))
 
-const fusionJobsStore = new Map<string, any>();
+const fusionJobsStore = new Map<string, any>()
+
 vi.mock("../../queues/rediscoverFusion.queue", async () => {
-    const { Queue } = await import("bullmq");
-
-    const queue = new Queue("rediscover-fusion");
-
-
-    const originalAdd = queue.add;
-
+    const { Queue } = await import("bullmq")
+    const queue = new Queue("rediscover-fusion")
+    
     queue.add = async (name: string, data: any) => {
-    console.dir(data, { depth: null });
-        const job = await originalAdd(name, data)
+        const jobId = "mocked-job-id-" + Date.now()
 
-        const originalRemove = job.remove.bind(job);
-        job.remove = async () => {
-            fusionJobsStore.delete(job.id!);
-            return originalRemove();
-        };
-        fusionJobsStore.set(job.id!, job);
+        const job = {
+            id: jobId,
+            name,
+            data: { params: data },
+            returnvalue: trackDataSpotifyReturnValue,
+            getState: async () => "completed",
+            remove: async () => {
+                fusionJobsStore.delete(jobId)
+            }
+        }
+        
+        fusionJobsStore.set(jobId, job)
+        
         await redis.set(
             `fusion:users:${jobData.params.lastFmUser}:lastfm:${jobData.params.compare.firstCompare}`,
             JSON.stringify(trackDataSpotifyReturnValue),
             "EX",
             180
-
         )
-        return job;
-    };
+        
+        return job as Job
+    }
 
     queue.getJob = async (id: string) => {
-        const job = fusionJobsStore.get(id);
-        return job || null;
-    };
+        const stored = fusionJobsStore.get(id)
+        if (!stored) return undefined
 
-    return { rediscoverFusionQueue: queue };
-});
+        return {
+            id: stored.id,
+            name: stored.name,
+            data: stored.data,
+            getState: stored.getState,
+            remove: stored.remove,
+            result: stored.returnvalue,
+            returnvalue: stored.returnvalue
+        } as unknown as Job
+    }
 
+    return { rediscoverFusionQueue: queue }
+})
 describe("Spotify X Lastfm test", () => {
-    const csrf = generateCsrfToken();
+    const csrf = generateCsrfToken()
+    const cookies = [`csrf_token=${csrf}`, `spotify_token=fake-spotify-token`]
 
     it("Should wait for the worker to be completed and verify result", async () => {
         const payload = {
             compare: jobData.params.compare,
             lastFmUser: jobData.params.lastFmUser,
-        };
+        }
 
         const response = await request(app)
             .post("/fusion/loved-tracks/jobs")
             .set("x-csrf-token", csrf)
-            .set("Cookie", [`csrf_token=${csrf}`])
-            .set("Cookie", [`spotify_token=fake-spotify-token`])
-            .send(payload);
+            .set("Cookie", cookies)
+            .send(payload)
 
-        expect(response.status).toBe(202);
-        const jobId = response.body.jobId;
+        expect(response.status).toBe(202)
+        const jobId = response.body.jobId
 
-        let jobRes;
-        let state = "waiting";
+        let jobRes
+        let state = "waiting"
         for (let i = 0; i < 30; i++) {
-            jobRes = await request(app).get(`/fusion/loved-tracks/jobs/${jobId}`);
-            state = jobRes.body.state;
-            if (state === "failed" || state === "completed") break;
-            await new Promise(resolve => setTimeout(resolve, 200));
+            jobRes = await request(app)
+                .get(`/fusion/loved-tracks/jobs/${jobId}`)
+                .set("x-csrf-token", csrf)
+                .set("Cookie", cookies)
+            
+            if (jobRes.status !== 200) {
+                throw new Error(`GET route failed with status ${jobRes.status}. Body: ${JSON.stringify(jobRes.body)}`)
+            }
+
+            state = jobRes.body.state
+            if (state === "failed" || state === "completed") break
+            await new Promise(resolve => setTimeout(resolve, 200))
         }
 
-        expect(state).toBe("completed");
-        expect(jobRes?.body.result).toBeDefined();
-    });
+        expect(state).toBe("completed")
+        expect(jobRes?.body.result).toBeDefined()
+    })
 
     it("Should return cache if same job is being executed again", async () => {
-
         const cacheRedis = await redis.get(`fusion:users:${jobData.params.lastFmUser}:lastfm:${jobData.params.compare.firstCompare}`)
-
         expect(cacheRedis).toBeDefined()
     })
 
     it("Should return error if first compare is loved tracks", async () => {
-
         const payload = {
             compare: {
                 firstCompare: TimeRange.loved_tracks,
@@ -140,9 +158,8 @@ describe("Spotify X Lastfm test", () => {
         const response = await request(app)
             .post("/fusion/loved-tracks/jobs")
             .set("x-csrf-token", csrf)
-            .set("Cookie", [`csrf_token=${csrf}`])
-            .set("Cookie", [`spotify_token=fake-spotify-token`])
-            .send(payload);
+            .set("Cookie", cookies)
+            .send(payload)
 
         expect(response.status).toBe(400)
     })
@@ -151,29 +168,36 @@ describe("Spotify X Lastfm test", () => {
         const payload = {
             compare: jobData.params.compare,
             lastFmUser: jobData.params.lastFmUser,
-        };
+        }
 
         const response = await request(app)
             .post("/fusion/loved-tracks/jobs")
             .set("x-csrf-token", csrf)
-            .set("Cookie", [`csrf_token=${csrf}`])
-            .set("Cookie", [`spotify_token=fake-spotify-token`])
-            .send(payload);
+            .set("Cookie", cookies)
+            .send(payload)
+            
+        expect(response.status).toBe(202)
+        const jobId = response.body.jobId
 
-        expect(response.status).toBe(202);
-        const jobId = response.body.jobId;
-
-        let jobRes;
-        let state = "waiting";
+        let jobRes
+        let state = "waiting"
         for (let i = 0; i < 30; i++) {
-            jobRes = await request(app).get(`/fusion/loved-tracks/jobs/${jobId}`);
-            state = jobRes.body.state;
-            if (state === "failed" || state === "completed") break;
-            await new Promise(resolve => setTimeout(resolve, 200));
+            jobRes = await request(app)
+                .get(`/fusion/loved-tracks/jobs/${jobId}`)
+                .set("x-csrf-token", csrf)
+                .set("Cookie", cookies)
+            
+            if (jobRes.status !== 200) {
+                throw new Error(`GET route failed with status ${jobRes.status}. Body: ${JSON.stringify(jobRes.body)}`)
+            }
+
+            state = jobRes.body.state
+            if (state === "failed" || state === "completed") break
+            await new Promise(resolve => setTimeout(resolve, 200))
         }
 
-        expect(state).toBe("completed");
-        expect(jobRes?.body.result).toBeDefined();
+        expect(state).toBe("completed")
+        expect(jobRes?.body.result).toBeDefined()
 
         const payloadCancel = {
             jobId,
@@ -184,11 +208,9 @@ describe("Spotify X Lastfm test", () => {
         const cancelResponse = await request(app)
             .post(`/fusion/loved-tracks/jobs/${jobId}/${jobData.params.lastFmUser}/${payloadCancel.spotifyId}/cancel`)
             .set("x-csrf-token", csrf)
-            .set("Cookie", [`csrf_token=${csrf}`])
-            .set("Cookie", [`spotify_token=fake-spotify-token`])
+            .set("Cookie", cookies)
             .send(payloadCancel)
 
         expect(cancelResponse.status).toBe(401)
     })
-
-});
+})

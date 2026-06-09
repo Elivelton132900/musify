@@ -235,7 +235,6 @@ export const jobIdRediscoverLovedTracks = Joi.object({
 })
 
 export type RediscoverLovedTracksBody = {
-    fetchInDays?: number
     distinct: undefined | number
     candidateFrom: string
     candidateTo: string

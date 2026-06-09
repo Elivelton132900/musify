@@ -44,7 +44,7 @@ vi.mock("../../utils/fusionUtils", async (importOriginal) => {
     const actual = await importOriginal<any>()
 
     return {
-        ...actual, // 👈 mantém tudo real por padrão
+        ...actual,
         throwIfCanceledFusion: mockThrowIfCanceledFusion,
         fetchTracksNotInCacheLovedTracks: mockFetchTracksNotInCacheLovedTracks,
         fetchSingleRangeNotInCache: mockFetchSingleRangeNotInCache,
@@ -75,9 +75,6 @@ describe("Worker Fusion", () => {
         worker = rediscoverFusionWorker
         await worker.waitUntilReady();
 
-        worker.on("completed", (job) => {
-            console.log("COMPLETED:", job.id)
-        })
     })
 
     beforeEach(async () => {
@@ -155,7 +152,6 @@ describe("Worker Fusion", () => {
     })
 
     it("8.5 Should fail the worker (e.g. invalid API key) - job must go to failed state", async () => {
-        // 1. Simulamos o erro: O serviço vai rejeitar a promessa com um erro de API
         const apiError = new Error("Invalid API key or Unauthorized");
         mockFetchTracksNotInCacheLovedTracks.mockRejectedValueOnce(apiError);
 

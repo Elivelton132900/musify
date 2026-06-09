@@ -86,7 +86,6 @@ export class LastFmFetcherService {
 async getLastTimeMusicListened(
     signal: AbortSignal,
     params: ParametersURLInterface,
-    fetchInDays: number,
     job: Job,
 ) {
     // 1. Busca todas as tracks dos dois períodos (comparison e candidate)
@@ -129,6 +128,11 @@ async getLastTimeMusicListened(
     const safeOldComparison = oldComparison.filter(
         (t): t is OldComparison => !!t && !!t.artist && !!t.name && !!t.date,
     )
+
+            const candidateStart = dayjs(params.candidateFrom).utc()
+            const candidateEnd = dayjs(params.candidateTo).utc()
+            const fetchInDays = candidateEnd.diff(candidateStart, "day")
+
     
     // 9.2 Aplica o filtro de "dias sem ouvir" usando a data de referência (candidateTo)
     const referenceDate = dayjs(params.candidateTo).utc().endOf("day")
@@ -164,7 +168,6 @@ async getLastTimeMusicListened(
 
     async rediscoverLovedTracks(
         userlastfm: string,
-        fetchInDays: number,
         fetchForDistinct: number | undefined,
         candidateFrom: string | undefined,
         candidateTo: string | undefined,
@@ -209,7 +212,6 @@ async getLastTimeMusicListened(
             const lastTimeListenedLoop = (await this.getLastTimeMusicListened(
                 signal,
                 params,
-                fetchInDays,
                 job,
             )) as TrackDataLastFm[]
             if (signal?.aborted) throw new JobCanceledError()

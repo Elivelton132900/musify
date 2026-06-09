@@ -7,7 +7,6 @@ describe("Redis Connection", () => {
     it("Should be able to connect to Redis and receive PONG", async () => {
 
         const pong = await redis.ping()
-        console.log("pong ", pong)
         expect(pong).toBe("PONG")
 
     }),

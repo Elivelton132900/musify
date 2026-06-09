@@ -62,6 +62,18 @@ export class SpotifyController {
     static async getJob(req: SpotifyRequest, res: Response): Promise<void> {
         const { jobId } = req.params as { jobId: string }
 
+
+        const isDeleted = await redis.get(`rediscover:delete:${jobId}`)
+        const isCancelled = await redis.get(`rediscover:cancel:spotify:${jobId}`)
+
+        if (isDeleted || isCancelled) {
+            res.json({
+                state: "cancelled",
+                result: null,
+            })
+            return
+        }
+
         const job = await rediscoverSpotifyQueue.getJob(jobId)
 
         if (!job) {
@@ -143,16 +155,52 @@ export class SpotifyController {
         })
     }
 
+    // static async deleteRediscover(req: Request, res: Response) {
+    //     const { jobId } = req.params
+
+    //     const job = await rediscoverSpotifyQueue.getJob(jobId as string)
+
+    //     if (job) {
+    //         await redis.set(`rediscover:delete:spotify:${jobId}`, "1", "EX", 3600)
+
+    //         await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.firstCompare}`)
+    //         await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.secondCompare}`)
+    //         const state = await job.getState()
+
+    //         if (state !== "active") {
+    //             await job.remove()
+    //         }
+
+    //         res.status(200).json({
+    //             status: `Job ${jobId} deleted and marked as cancelled`,
+    //         })
+    //         return
+    //     }
+
+    //     res.status(404).json({
+    //         error: `Job ${jobId} not deleted because was not founded`,
+    //     })
+    // }
+
     static async deleteRediscover(req: Request, res: Response) {
         const { jobId } = req.params
 
         const job = await rediscoverSpotifyQueue.getJob(jobId as string)
 
         if (job) {
-            await redis.set(`rediscover:delete:spotify:${jobId}`, "1", "EX", 3600)
+            await redis.set(`rediscover:delete:${jobId}`, "1", "EX", 3600)
 
-            await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.firstCompare}`)
-            await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.secondCompare}`)
+            const spotifyId = job.data?.spotifyId || job.data?.params?.spotifyId
+            const firstCompare = job.data?.compare?.firstCompare || job.data?.params?.compare?.firstCompare
+            const secondCompare = job.data?.compare?.secondCompare || job.data?.params?.compare?.secondCompare
+
+            if (spotifyId && firstCompare) {
+                await redis.del(`spotify:users:${spotifyId}:${firstCompare}`)
+            }
+            if (spotifyId && secondCompare) {
+                await redis.del(`spotify:users:${spotifyId}:${secondCompare}`)
+            }
+
             const state = await job.getState()
 
             if (state !== "active") {
@@ -169,7 +217,6 @@ export class SpotifyController {
             error: `Job ${jobId} not deleted because was not founded`,
         })
     }
-
     static async getJobs(req: Request, res: Response) {
         const jobs = await rediscoverSpotifyQueue.getJobs(["wait", "active"], 0, -1)
         res.status(200).json({

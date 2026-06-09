@@ -57,6 +57,18 @@ export class LastFmController {
         const param = req.params as ObjectId
         const { jobId } = param
 
+
+        const isDeleted = await redis.get(`rediscover:delete:${jobId}`)
+        const isCancelled = await redis.get(`rediscover:cancel:lastfm:${jobId}`)
+
+        if (isDeleted || isCancelled) {
+            res.json({
+                state: "cancelled",
+                result: null,
+            })
+            return
+        }
+        
         const job = await rediscoverLastFmQueue.getJob(jobId)
         if (!job) {
             res.status(404).json({ error: "Job not found" })

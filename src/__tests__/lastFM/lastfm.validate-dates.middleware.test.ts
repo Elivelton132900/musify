@@ -83,7 +83,6 @@ describe("validation of dates", () => {
 
   beforeAll(() => {
     validCsrfToken = generateCsrfToken();
-    // Guarda a implementação original do mock (que apenas chama next)
   })
 
   it("Should return 202 when passed a valid date", async () => {
@@ -100,7 +99,7 @@ describe("validation of dates", () => {
       .post("/lastfm/loved-tracks/jobs")
       .set("x-csrf-token", validCsrfToken)
       .set("Cookie", [`csrf_token=${validCsrfToken}`])
-      .send(payload);
+      .send(payload)
 
 
     expect(response.status).toBe(202);
@@ -203,8 +202,7 @@ describe("validation of dates", () => {
   });
 
   it("Should return true if using dates before account creation date", async () => {
-    // Todas as datas são anteriores ao timestamp da conta (2010-01-10)
-    // E respeitam as regras de ordem e não overlap
+
     const payload = {
       candidateFrom: "2000-01-11",
       candidateTo: "2000-01-20",

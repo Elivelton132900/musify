@@ -71,7 +71,6 @@ describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
             .post("/spotify/loved-tracks/comparison-jobs")
             .set("Cookie", "spotify_token=fake-token")
             .set("x-csrf-token", validCsrfToken)
-            // ✅ Cookies
             .set("Cookie", [
                 `csrf_token=${validCsrfToken}`,
                 "spotify_token=fake-token-123",
@@ -84,7 +83,6 @@ describe("POST /spotify/loved-tracks/comparison-jobs - duplicate jobs", () => {
             .set("Cookie", "spotify_token=fake-token")
             .set("Cookie", "spotify_token=fake-token")
             .set("x-csrf-token", validCsrfToken)
-            // ✅ Cookies
             .set("Cookie", [
                 `csrf_token=${validCsrfToken}`])
             .send(payload)
