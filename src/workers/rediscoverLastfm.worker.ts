@@ -11,14 +11,6 @@ const service = new LastFmService()
 
 export const lastFmWorkerProcessor = async (job: Job<RediscoverLovedTracksBody>) => {
     if (job.name !== "rediscover-loved-tracks-last-fm") return
-    console.log("service =", service)
-    console.log(
-        "typeof rediscoverLovedTracks =",
-        typeof service.rediscoverLovedTracks
-    )
-    console.log("params ", job.data)
-
-
     const { lastFmUser } = job.data
 
     const controller = new AbortController()
@@ -29,9 +21,6 @@ export const lastFmWorkerProcessor = async (job: Job<RediscoverLovedTracksBody>)
 
     try {
         const result = await service.rediscoverLovedTracks(lastFmUser, job.data, signal, job)
-        console.log("RESULT =", result)
-        console.log("IS ARRAY =", Array.isArray(result))
-        console.log("LENGTH =", result?.length)
         if (signal.aborted) return
         if (!result || (Array.isArray(result) && result.length === 0)) {
             console.warn("Resultado vazio ou inválido, não salvando cache")
@@ -65,6 +54,12 @@ export const rediscoverLastFmWorker = new Worker(
         concurrency: 1,
         maxStalledCount: 50,
         lockDuration: 120000,
+        removeOnComplete: {
+            age: 24 * 60 * 60
+        },
+        removeOnFail: {
+            age: 24 * 60 * 60
+        }
     },
 )
 

@@ -163,27 +163,11 @@ export async function returnHistoryLastFm(
     signal: AbortSignal,
     userLastFm: string,
 ): Promise<trackRecentData[]> {
-    console.log("INITIAL DATE AND FINAL ", initialDateFusion, finalDateFusion)
     const initialDate = dayjs(initialDateFusion).unix()
     const finalDate = dayjs().unix()
     let allTracks: trackRecentData[] = []
     let page = 1
     let totalPages = 1
-
-    console.log("🔍 Datas do Last.fm:")
-    console.log(
-        "  from timestamp:",
-        initialDate,
-        "=",
-        dayjs(initialDateFusion).format(),
-    )
-    console.log(
-        "  to timestamp:",
-        finalDate,
-        "=",
-        dayjs(finalDateFusion).format(),
-    )
-    console.log("  Data atual:", dayjs().format())
 
     while (page <= totalPages) {
         if (signal?.aborted) throw new JobCanceledError()

@@ -39,7 +39,6 @@ export const jobWithSameUrlExists = async (
             const lastFmUser = job.data.params.lastFmUser
 
             const obj = { spotifyId, lastFmUser, compare }
-            console.log("obj ", obj)
             jobsData.push(obj)
         })
 

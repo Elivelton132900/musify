@@ -4,6 +4,7 @@ import { rediscoverLastFmQueue } from "../queues/rediscoverLastfm.queue"
 import { redis } from "../infra/redis"
 import { addJobToQueue as originalAddJobToQueue } from "../utils/lastFmUtils"
 import dayjs from "dayjs"
+import zlib from "zlib"
 
 export class LastFmController {
 
@@ -68,7 +69,7 @@ export class LastFmController {
             })
             return
         }
-        
+
         const job = await rediscoverLastFmQueue.getJob(jobId)
         if (!job) {
             res.status(404).json({ error: "Job not found" })
@@ -76,6 +77,19 @@ export class LastFmController {
         }
 
         const state = await job.getState()
+        if (job.returnvalue) {
+            try {
+                const compressedBuffer = Buffer.from(job.returnvalue, "base64")
+                const descompressedData = zlib.gunzipSync(compressedBuffer).toString()
+
+                res.json({
+                    state,
+                    result: JSON.parse(descompressedData)
+                })
+            } catch(err) {
+                res.status(500).json({error: "failed to descompress job data"})
+            }
+        }
 
         res.json({
             state,
@@ -85,7 +99,7 @@ export class LastFmController {
 
     static async cancelRediscover(req: Request, res: Response) {
         const { jobId } = req.params
-
+        console.log("jobid ", jobId)
         if (!jobId) {
             res.status(404).json({ error: "Job ID is required" })
             return
@@ -99,9 +113,7 @@ export class LastFmController {
         }
 
         await redis.set(`rediscover:cancel:lastfm:${jobId}`, "1", "EX", 60 * 60 * 24)
-        // salvando cancel para a fila progredir para o proximo. deletar o job {jobId}
-        // se não ter como salvar a data que a musica foi escutada e cruzar dados para otimização, pular paginas
-        // onde já tem dados salvos
+
         res.json({ status: `Job ${jobId} marked as cancelled` })
     }
 

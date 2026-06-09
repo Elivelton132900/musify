@@ -18,8 +18,6 @@ export const restrictSameUser = async (req: Request, res: Response, next: NextFu
 
     const { spotifyId: spotifyIdJob, lastFmUser: lastFmUserJob } = jobData.params
 
-    console.log(lastFmUser, lastFmUserJob, spotifyId, spotifyIdJob)
-
     if (lastFmUser !== lastFmUserJob || spotifyId !== spotifyIdJob) {
         return res.status(401).json({
             error: "You can not delete or cancel a job from a different person"

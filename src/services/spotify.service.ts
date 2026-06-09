@@ -25,11 +25,6 @@ export class SpotifyService {
         job: Job,
         signal: AbortSignal,
     ): Promise<SpotifyUserTopItems[]> {
-        console.log("fetchTopTracks - job.id:", job?.id)
-        console.log(
-            "🔍 fetchTopTracks - job.data:",
-            JSON.stringify(job?.data, null, 2),
-        )
         console.log("fetchTopTracks - time_range:", time_range)
         const items: SpotifyUserTopItems[] = []
         const timeRangeValue = TimeRange[time_range]
@@ -172,7 +167,6 @@ export class SpotifyService {
         job: Job,
         signal: AbortSignal,
     ) {
-        console.log("🔍 syncTopMusics - time_range recebido:", time_range)
 
         if (!time_range) {
             throw new Error(`time_range is undefined!`)

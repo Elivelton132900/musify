@@ -39,7 +39,6 @@ export const jobWithSameUrlExists = async (
             const { spotifyId: jobUserId, firstCompare, secondCompare } = extractJobData(job)
 
             if (!firstCompare || !secondCompare) {
-                console.log(`⚠️ Job ${job.id} sem dados válidos, ignorando`)
                 return false
             }
 
@@ -48,10 +47,6 @@ export const jobWithSameUrlExists = async (
             const jobRangeKey = `${first}_${second}`
 
             const isMatch = jobUserId === userId && jobRangeKey === rangeToCompare
-
-            if (isMatch) {
-                console.log(`✅ Match encontrado no job ${job.id}: ${jobRangeKey}`)
-            }
 
             return isMatch
         })

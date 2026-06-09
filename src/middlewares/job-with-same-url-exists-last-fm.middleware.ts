@@ -7,33 +7,30 @@ const isJsonEqual = (
     urlBody: RediscoverLovedTracksBody,
     jobJson: RediscoverLovedTracksBody,
 ): boolean => {
-    const urlQueryStringValues = JSON.parse(
-        JSON.stringify(urlBody, (key, value) => {
-            if (value === null || value === undefined) return value
 
-            if (typeof value !== "object") {
-                return String(value)
-            }
+    if (!urlBody || !jobJson) return false
 
-            return value
-        }),
-    )
+    // Extracted replacer function to keep things clean
+    const replacer = (key: string, value: any) => {
+        if (value === null || value === undefined) return value
+        if (typeof value !== "object") {
+            return String(value)
+        }
+        return value
+    }
 
-    const jobJsonStringValues = JSON.parse(
-        JSON.stringify(jobJson, (key, value) => {
-            if (value === null || value === undefined) return value
+    try {
+        const urlQueryStringValues = JSON.parse(JSON.stringify(urlBody, replacer))
+        const jobJsonStringValues = JSON.parse(JSON.stringify(jobJson, replacer))
 
-            if (typeof value !== "object") {
-                return String(value)
-            }
-
-            return value
-        }),
-    )
-    return (
-        JSON.stringify(urlQueryStringValues, Object.keys(urlQueryStringValues).sort()) ===
-        JSON.stringify(jobJsonStringValues, Object.keys(jobJsonStringValues).sort())
-    )
+        return (
+            JSON.stringify(urlQueryStringValues, Object.keys(urlQueryStringValues).sort()) ===
+            JSON.stringify(jobJsonStringValues, Object.keys(jobJsonStringValues).sort())
+        )
+    } catch (err) {
+        console.error("Error parsing JSON during comparison:", err)
+        return false
+    }
 }
 
 const jobAlreadyRunningOrcompleted = (
@@ -41,7 +38,9 @@ const jobAlreadyRunningOrcompleted = (
     urlQuerys: RediscoverLovedTracksBody,
 ): boolean => {
     for (let i = 0; i < jobs.length; i++) {
-        if (isJsonEqual(urlQuerys, jobs[i].data.params)) {
+        const jobParams = jobs[i]?.data?.params || jobs[i]?.data
+        
+        if (isJsonEqual(urlQuerys, jobParams)) {
             return true
         }
     }
@@ -51,6 +50,7 @@ const jobAlreadyRunningOrcompleted = (
 export async function jobWithSameUrlExists(req: Request, res: Response, next: NextFunction) {
     try {
         const urlBody = req.body as unknown as RediscoverLovedTracksBody
+       
         const jobsActiveAndCompleted = await rediscoverLastFmQueue.getJobs(
             ["active", "completed", "waiting"],
             0,

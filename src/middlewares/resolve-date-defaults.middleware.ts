@@ -3,8 +3,41 @@ import dayjs from "dayjs"
 import minMax from "dayjs/plugin/minMax"
 import axios from "axios"
 import { redis } from "../infra/redis"
+import customParseFormat from "dayjs/plugin/customParseFormat"
+import utc from "dayjs/plugin/utc"
+
+function parseDate(
+    value: unknown,
+    fieldName: string,
+    next: NextFunction,
+) {
+    if (value === undefined) {
+        return undefined
+    }
+
+    if (typeof value !== "string") {
+        next(new Error(`"${fieldName}" must be a string in YYYY-MM-DD format`))
+        return null
+    }
+
+    const date = dayjs.utc(value, "YYYY-MM-DD", true)
+
+    if (!date.isValid()) {
+        next(
+            new Error(
+                `"${fieldName}" must be a valid date in YYYY-MM-DD format`,
+            ),
+        )
+        return null
+    }
+
+    return date
+}
 
 dayjs.extend(minMax)
+dayjs.extend(customParseFormat)
+dayjs.extend(utc)
+
 async function userAccountCreation(user: string) {
     const userAccountCreationExists = await redis.get(
         `rediscover:${user}:accountCreation`,
@@ -18,9 +51,9 @@ async function userAccountCreation(user: string) {
             format: "json",
         }
         const endpoint = "https://ws.audioscrobbler.com/2.0/"
-const response = await axios.get(endpoint, {
-    params: params,
-})
+        const response = await axios.get(endpoint, {
+            params: params,
+        })
         const unixtimeAccountCreation = response.data.user.registered.unixtime
         console.log("response.data ", response.data)
         await redis.set(
@@ -52,25 +85,33 @@ export async function resolveDateDefaults(
             await userAccountCreation(userLastFm),
         )
 
-        const comparisonFrom =
-            req.body.comparisonFrom !== undefined
-                ? dayjs(req.body.comparisonFrom as string).utc()
-                : undefined
+        const comparisonFrom = parseDate(
+            req.body.comparisonFrom,
+            "comparisonFrom",
+            next,
+        )
 
-        const comparisonTo =
-            req.body.comparisonTo !== undefined
-                ? dayjs(req.body.comparisonTo as string).utc()
-                : undefined
+        if (comparisonFrom === null) return
+        const comparisonTo = parseDate(
+            req.body.comparisonTo,
+            "comparisonTo",
+            next,
+        )
+        if (comparisonTo === null) return
 
-        const candidateFrom =
-            req.body.candidateFrom !== undefined
-                ? dayjs(req.body.candidateFrom as string).utc()
-                : undefined
+        const candidateFrom = parseDate(
+            req.body.candidateFrom,
+            "candidateFrom",
+            next,
+        )
+        if (candidateFrom === null) return
+        const candidateTo = parseDate(
+            req.body.candidateTo,
+            "candidateTo",
+            next,
+        )
+        if (candidateTo === null) return
 
-        const candidateTo =
-            req.body.candidateTo !== undefined
-                ? dayjs(req.body.candidateTo as string).utc()
-                : undefined
 
         // se candidateFrom for ANTES da data de comparisonFrom, ERRO, por que dados candidatos a serem comparados devem ser procurados depois da data de comparisonFrom.
         if (candidateFrom?.isBefore(comparisonFrom)) {

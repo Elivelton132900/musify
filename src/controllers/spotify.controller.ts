@@ -82,7 +82,6 @@ export class SpotifyController {
         }
 
         const spotifyUser = req.spotifyUser
-        // ✅ Verifica se o job pertence ao usuário autenticado
         if (spotifyUser && job.data?.spotifyId !== spotifyUser.spotifyId) {
             res.status(403).json({
                 error: "Access denied. This job belongs to another user."
@@ -94,7 +93,6 @@ export class SpotifyController {
         let result: unknown = job.returnvalue ?? null
         let resultLength: number | null = null
 
-        // ✅ Filtra apenas as músicas do usuário atual (se aplicável)
         if (spotifyUser && result) {
             if (Array.isArray(result)) {
                 // Se result é um array de tracks
@@ -154,33 +152,6 @@ export class SpotifyController {
             status: `Job ${jobId} marked as cancelled`,
         })
     }
-
-    // static async deleteRediscover(req: Request, res: Response) {
-    //     const { jobId } = req.params
-
-    //     const job = await rediscoverSpotifyQueue.getJob(jobId as string)
-
-    //     if (job) {
-    //         await redis.set(`rediscover:delete:spotify:${jobId}`, "1", "EX", 3600)
-
-    //         await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.firstCompare}`)
-    //         await redis.del(`spotify:users:${job.data.params.spotifyId}:${job.data.params.compare.secondCompare}`)
-    //         const state = await job.getState()
-
-    //         if (state !== "active") {
-    //             await job.remove()
-    //         }
-
-    //         res.status(200).json({
-    //             status: `Job ${jobId} deleted and marked as cancelled`,
-    //         })
-    //         return
-    //     }
-
-    //     res.status(404).json({
-    //         error: `Job ${jobId} not deleted because was not founded`,
-    //     })
-    // }
 
     static async deleteRediscover(req: Request, res: Response) {
         const { jobId } = req.params
